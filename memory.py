@@ -49,6 +49,18 @@ DEFAULT_GOVERNANCE = {
         "schedule": "daily",
         "archive_path": "archive/",
     },
+    "projection": {
+        "publish_root": "openclaw-memory",
+        "durable_thresholds": {
+            "strategy": 0.85,
+            "preference": 0.75,
+            "rule": 0.8,
+        },
+        "recent_threshold": 0.45,
+        "max_durable_items": 12,
+        "max_recent_items": 12,
+        "max_brief_items_per_type": 3,
+    },
 }
 
 DEFAULT_INDEX = {
@@ -120,6 +132,10 @@ class MemorySystem:
         self._load_index()
         self._rebuild_index()
         self._update_status()
+
+        from decision_layer import DecisionLayer
+
+        self.decision_layer = DecisionLayer(self)
 
     def _ensure_storage(self):
         """确保目录与基础文件存在。"""
@@ -318,23 +334,21 @@ class MemorySystem:
         limit_per_type: int = 3,
     ) -> Dict[str, Any]:
         """构建供 OpenClaw 在会话开始或任务前读取的记忆摘要。"""
-        brief = self.retrieve_memory(context, limit_per_type=limit_per_type)
+        return self.decision_layer.build_openclaw_brief(
+            context,
+            limit_per_type=limit_per_type,
+        )
 
-        if not brief["preferences"]:
-            brief["preferences"] = self.get_all_preferences()[: min(limit_per_type, 2)]
-
-        summary = []
-        for strategy in brief["strategies"]:
-            summary.append(f"Strategy: {strategy.get('condition')} -> {strategy.get('action')}")
-        for preference in brief["preferences"]:
-            category = preference.get("category", "general")
-            summary.append(f"Preference ({category}): {preference.get('preference')}")
-        for rule in brief["rules"]:
-            summary.append(f"Avoid: {rule.get('trigger')} | Prevention: {rule.get('prevention')}")
-
-        brief["summary"] = summary
-        brief["context"] = context
-        return brief
+    def build_decision_brief(
+        self,
+        context: Dict[str, Any],
+        limit_per_type: int = 3,
+    ) -> Dict[str, Any]:
+        """构建结构化的任务前决策包。"""
+        return self.decision_layer.build_decision_brief(
+            context,
+            limit_per_type=limit_per_type,
+        )
 
     def render_openclaw_memory(
         self,
@@ -342,31 +356,36 @@ class MemorySystem:
         limit_per_type: int = 3,
     ) -> str:
         """将记忆摘要渲染为适合 OpenClaw 提示词注入的 Markdown。"""
-        brief = self.build_openclaw_brief(context, limit_per_type=limit_per_type)
-        if not any(brief[key] for key in ("strategies", "preferences", "rules")):
-            return ""
+        return self.decision_layer.render_openclaw_memory(
+            context,
+            limit_per_type=limit_per_type,
+        )
 
-        lines = ["## Relevant Memory"]
+    def select_projection(
+        self,
+        context: Optional[Dict[str, Any]] = None,
+        limit_per_type: int = 3,
+    ) -> Dict[str, Any]:
+        """为宿主记忆发布和任务前 brief 选择候选项。"""
+        return self.decision_layer.select_projection(
+            context or {},
+            limit_per_type=limit_per_type,
+        )
 
-        if brief["strategies"]:
-            lines.append("### Strategies")
-            for strategy in brief["strategies"]:
-                lines.append(f"- When {strategy.get('condition')}: {strategy.get('action')}")
-
-        if brief["preferences"]:
-            lines.append("### User Preferences")
-            for preference in brief["preferences"]:
-                category = preference.get("category", "general")
-                lines.append(f"- {category}: {preference.get('preference')}")
-
-        if brief["rules"]:
-            lines.append("### Error Rules")
-            for rule in brief["rules"]:
-                lines.append(
-                    f"- Avoid {rule.get('trigger')}; prevention: {rule.get('prevention')}"
-                )
-
-        return "\n".join(lines)
+    def publish_openclaw_memory(
+        self,
+        target_root: Optional[Path] = None,
+        context: Optional[Dict[str, Any]] = None,
+        limit_per_type: int = 3,
+        mode: str = "incremental",
+    ) -> Dict[str, Any]:
+        """将治理后的高价值记忆发布到 OpenClaw host memory 文件。"""
+        return self.decision_layer.publish_openclaw_memory(
+            target_root=target_root,
+            context=context or {},
+            limit_per_type=limit_per_type,
+            mode=mode,
+        )
 
     def get_all_strategies(self) -> List[Dict[str, Any]]:
         """获取所有 task strategies。"""
@@ -908,12 +927,43 @@ def build_openclaw_brief(
     return get_memory().build_openclaw_brief(context, limit_per_type=limit_per_type)
 
 
+def build_decision_brief(
+    context: Dict[str, Any],
+    limit_per_type: int = 3,
+) -> Dict[str, Any]:
+    """构建结构化的任务前决策包。"""
+    return get_memory().build_decision_brief(context, limit_per_type=limit_per_type)
+
+
 def render_openclaw_memory(
     context: Dict[str, Any],
     limit_per_type: int = 3,
 ) -> str:
     """渲染适合注入 OpenClaw 提示词的 Markdown 记忆块。"""
     return get_memory().render_openclaw_memory(context, limit_per_type=limit_per_type)
+
+
+def select_projection(
+    context: Optional[Dict[str, Any]] = None,
+    limit_per_type: int = 3,
+) -> Dict[str, Any]:
+    """为宿主记忆发布和任务前 brief 选择候选项。"""
+    return get_memory().select_projection(context or {}, limit_per_type=limit_per_type)
+
+
+def publish_openclaw_memory(
+    target_root: Optional[Path] = None,
+    context: Optional[Dict[str, Any]] = None,
+    limit_per_type: int = 3,
+    mode: str = "incremental",
+) -> Dict[str, Any]:
+    """将治理后的高价值记忆发布到 OpenClaw host memory 文件。"""
+    return get_memory().publish_openclaw_memory(
+        target_root=target_root,
+        context=context or {},
+        limit_per_type=limit_per_type,
+        mode=mode,
+    )
 
 
 if __name__ == "__main__":

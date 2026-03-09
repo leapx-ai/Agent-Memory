@@ -46,3 +46,14 @@ strategies:
 cleanup:
   schedule: daily
   archive_path: archive/
+
+projection:
+  publish_root: openclaw-memory
+  durable_thresholds:
+    strategy: 0.85
+    preference: 0.75
+    rule: 0.8
+  recent_threshold: 0.45
+  max_durable_items: 12
+  max_recent_items: 12
+  max_brief_items_per_type: 3

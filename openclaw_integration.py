@@ -9,6 +9,7 @@ This module provides thin hooks for the main OpenClaw lifecycle:
 - error capture and rule learning
 """
 
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from memory import MemorySystem, get_memory
@@ -36,6 +37,7 @@ class OpenClawMemoryAdapter:
         return {
             "context": context,
             "brief": brief,
+            "decision_brief": brief.get("decision_brief"),
             "prompt_block": self.memory.render_openclaw_memory(context, limit_per_type=limit),
         }
 
@@ -153,6 +155,22 @@ class OpenClawMemoryAdapter:
             "memory_item": learned,
         }
 
+    def publish_memory(
+        self,
+        target_root: Optional[Path] = None,
+        context: Optional[Dict[str, Any]] = None,
+        limit_per_type: Optional[int] = None,
+        mode: str = "incremental",
+    ) -> Dict[str, Any]:
+        """Publish governed memory into OpenClaw host-memory files."""
+        limit = limit_per_type or self.limit_per_type
+        return self.memory.publish_openclaw_memory(
+            target_root=target_root,
+            context=context or {},
+            limit_per_type=limit,
+            mode=mode,
+        )
+
     def _infer_memory_type(self, event: Dict[str, Any]) -> str:
         """Keep adapter output stable without exposing memory internals."""
         explicit = str(event.get("memory_type", "")).strip().lower()
@@ -268,4 +286,19 @@ def openclaw_record_error(
         feedback=feedback,
         prevention=prevention,
         root_cause=root_cause,
+    )
+
+
+def openclaw_publish_memory(
+    target_root: Optional[Path] = None,
+    context: Optional[Dict[str, Any]] = None,
+    mode: str = "incremental",
+    memory_system: Optional[MemorySystem] = None,
+    limit_per_type: int = 3,
+) -> Dict[str, Any]:
+    """Publish governed memory into OpenClaw host-memory files."""
+    return get_openclaw_adapter(memory_system, limit_per_type).publish_memory(
+        target_root=target_root,
+        context=context or {},
+        mode=mode,
     )

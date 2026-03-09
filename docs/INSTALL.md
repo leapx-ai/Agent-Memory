@@ -62,6 +62,7 @@ payload = adapter.session_start({
     "task": "your_task",
     "workspace": "your_workspace",
 })
+print(payload["decision_brief"])
 print(payload["prompt_block"])
 
 # Log event after task
@@ -92,6 +93,14 @@ python3 agent_memory_cli.py session-start --json '{
     "task": "your_task",
     "workspace": "your_workspace"
   }
+}'
+
+python3 agent_memory_cli.py publish-memory --json '{
+  "context": {
+    "task": "your_task",
+    "workspace": "your_workspace"
+  },
+  "target_path": "/path/to/openclaw-workspace"
 }'
 ```
 

@@ -66,6 +66,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_json_input_options(record_error)
 
+    publish_memory = subparsers.add_parser(
+        "publish-memory",
+        help="Publish governed memory into OpenClaw host-memory files.",
+    )
+    _add_json_input_options(publish_memory)
+    publish_memory.add_argument(
+        "--target-path",
+        help="Override the OpenClaw host-memory target root for this invocation.",
+    )
+    publish_memory.add_argument(
+        "--limit-per-type",
+        type=int,
+        default=None,
+        help="Maximum number of projected items to consider per category.",
+    )
+    publish_memory.add_argument(
+        "--mode",
+        default=None,
+        help="Projection mode. Supported values: incremental, full.",
+    )
+
     return parser
 
 
@@ -182,6 +203,31 @@ def handle_record_error(
     )
 
 
+def handle_publish_memory(
+    adapter: "OpenClawMemoryAdapter",
+    args: argparse.Namespace,
+) -> Dict[str, Any]:
+    payload = load_payload(args)
+    context = payload.get("context", {})
+    if not isinstance(context, dict):
+        raise ValueError("publish-memory field 'context' must be a JSON object if provided.")
+
+    target_path = args.target_path or payload.get("target_path")
+    limit_per_type = (
+        args.limit_per_type
+        if args.limit_per_type is not None
+        else payload.get("limit_per_type", adapter.limit_per_type)
+    )
+    mode = args.mode or payload.get("mode", "incremental")
+
+    return adapter.publish_memory(
+        target_root=Path(target_path).expanduser() if target_path else None,
+        context=context,
+        limit_per_type=limit_per_type,
+        mode=str(mode),
+    )
+
+
 def _required_str(payload: Dict[str, Any], key: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or not value.strip():
@@ -215,6 +261,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         "task-complete": handle_task_complete,
         "user-feedback": handle_user_feedback,
         "record-error": handle_record_error,
+        "publish-memory": handle_publish_memory,
     }
 
     try:

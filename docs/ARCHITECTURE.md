@@ -153,6 +153,37 @@ Current implementation note:
 - OpenClaw can consume the result through `build_openclaw_brief()` or `render_openclaw_memory()`
 - The recommended runtime hook layer is `openclaw_integration.py`
 
+### 6. Decision Layer
+
+This layer sits between core retrieval and OpenClaw consumption.
+
+Its job is not to own storage. Its job is to project governed memory into two host-facing outputs:
+
+- **Host Memory Projection**: publish durable and recent memory into OpenClaw memory files
+- **Decision Brief**: build a task-start packet containing the highest-value guidance for the current context
+
+Recommended internal components:
+
+- **Selector / Ranker**: choose which items deserve projection
+- **Publisher**: write durable vs recent host memory
+- **Decision Brief Builder**: produce task-start guidance
+- **Sync Policy**: decide when host memory vs task-time brief should refresh
+
+Current implementation status:
+
+- `retrieve_memory()` exists as unified retrieval
+- `build_decision_brief()` exists as the first structured Decision Brief builder
+- `build_openclaw_brief()` now wraps raw retrieval, Decision Brief output, and projection metadata
+- `render_openclaw_memory()` renders both a Decision Brief section and backward-compatible memory sections
+- `publish_openclaw_memory()` exists as the first host-memory publisher
+- sync policy currently remains basic and explicit-call driven
+
+Practical interpretation:
+
+- strong enough for a personal OpenClaw workflow
+- appropriate as a local projection / decision-enhancement layer
+- not yet hardened as a high-concurrency or multi-agent publishing system
+
 ## Data Structures
 
 ### Event
@@ -279,6 +310,8 @@ OpenClaw Agent
      │
      ├─→ Session Start
      │      └─→ OpenClaw adapter or CLI
+     │              ├─→ Decision Brief
+     │              └─→ projected host memory
      │
      ├─→ Task Complete
      │      └─→ standalone Agent-Memory call
@@ -298,6 +331,8 @@ For `v1.0.0`, the preferred integration order is:
 1. OpenClaw calls the Python adapter directly if both live in the same environment.
 2. Otherwise, OpenClaw calls the future CLI surface with structured payloads.
 3. HTTP/service deployment remains post-`v1.0.0`.
+
+For the next OpenClaw-facing design layer, see [DECISION_LAYER.md](./DECISION_LAYER.md).
 
 ## Future Work
 

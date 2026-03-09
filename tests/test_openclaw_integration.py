@@ -140,12 +140,43 @@ class OpenClawIntegrationTests(unittest.TestCase):
         )
 
         self.assertIn("brief", payload)
+        self.assertIn("decision_brief", payload)
         self.assertIn("prompt_block", payload)
+        self.assertIn("## Decision Brief", payload["prompt_block"])
         self.assertIn("## Relevant Memory", payload["prompt_block"])
+        self.assertIn("### Priority Preferences", payload["prompt_block"])
+        self.assertIn("### Relevant Strategies", payload["prompt_block"])
+        self.assertIn("### Risk Alerts", payload["prompt_block"])
         self.assertIn("### Strategies", payload["prompt_block"])
         self.assertIn("### User Preferences", payload["prompt_block"])
         self.assertIn("### Error Rules", payload["prompt_block"])
         self.assertGreaterEqual(len(payload["brief"]["summary"]), 3)
+
+    def test_publish_memory_writes_host_files(self):
+        self.adapter.user_feedback(
+            goal="Generate images",
+            context={"task": "image_generation", "workspace": "openclaw"},
+            action="Used emoji in image label",
+            feedback="Don't use emoji, use text instead",
+        )
+        self.adapter.user_feedback(
+            goal="Respond to the user",
+            context={"surface": "chat", "workspace": "openclaw"},
+            action="Sent a verbose answer",
+            feedback="Be concise",
+            memory_type="preference",
+            category="communication_style",
+        )
+
+        target_root = self.temp_dir / "projected-memory"
+        result = self.adapter.publish_memory(
+            target_root=target_root,
+            context={"task": "image_generation", "workspace": "openclaw", "surface": "chat"},
+        )
+
+        self.assertTrue(Path(result["memory_file"]).exists())
+        self.assertTrue(Path(result["daily_file"]).exists())
+        self.assertIn("decision_brief", result)
 
 
 if __name__ == "__main__":

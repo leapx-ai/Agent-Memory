@@ -43,6 +43,7 @@ Output:
 
 - `context`
 - `brief`
+- `decision_brief`
 - `prompt_block`
 
 Use `--prompt-only` if OpenClaw only needs the rendered Markdown block.
@@ -123,6 +124,39 @@ Example:
 ```bash
 python3 agent_memory_cli.py record-error --input error.json
 ```
+
+### `publish-memory`
+
+Publish governed memory into OpenClaw-style host memory files.
+
+Input:
+
+```json
+{
+  "context": {
+    "task": "image_generation",
+    "workspace": "openclaw",
+    "surface": "chat"
+  },
+  "target_path": "/tmp/openclaw-workspace",
+  "limit_per_type": 3,
+  "mode": "incremental"
+}
+```
+
+Example:
+
+```bash
+python3 agent_memory_cli.py publish-memory --input publish.json
+```
+
+Output:
+
+- `target_root`
+- `memory_file`
+- `daily_file`
+- `published`
+- `decision_brief`
 
 ## Input Rules
 

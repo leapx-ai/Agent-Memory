@@ -125,6 +125,40 @@ Memory System:
   Error → Log and continue (no crash)
 ```
 
+### Decision 6: Projection Layer Over Direct Dumping
+
+**Problem**: Raw retrieval results are not the same thing as decision-ready guidance.
+
+If Agent-Memory sends too much internal memory directly to OpenClaw, quality drops:
+
+- host memory becomes noisy
+- task-start context becomes bloated
+- OpenClaw has to do too much second-order reasoning
+
+**Decision**: Add a dedicated projection / decision layer between the core engine and OpenClaw-facing outputs.
+
+This layer is responsible for:
+
+- selecting which memory items deserve host visibility
+- publishing stable items into OpenClaw host memory
+- producing a compact Decision Brief for task start
+- keeping publication and task-time packaging separate from source storage
+
+Recommended internal components:
+
+- selector / ranker
+- publisher
+- Decision Brief builder
+- sync policy
+
+This preserves the intended layering:
+
+- core engine = learning and governance
+- projection layer = packaging and delivery
+- OpenClaw = runtime execution
+
+See [DECISION_LAYER.md](./DECISION_LAYER.md) for the concrete design.
+
 ---
 
 ## Integration Architecture
@@ -141,6 +175,8 @@ Recommended implementation surface: use `openclaw_integration.py` as the lifecyc
 │  Session Start (AGENTS.md)                              │
 │       ↓                                                  │
 │  Python adapter or standalone CLI                       │
+│       ↓                                                  │
+│  Decision Brief + host memory projection                │
 │       ↓                                                  │
 │  Apply strategies + preferences + error rules           │
 │                                                          │
@@ -166,6 +202,8 @@ Recommended implementation surface: use `openclaw_integration.py` as the lifecyc
 | Python memory engine | ✅ Stable contract | ✅ |
 | OpenClaw adapter | ✅ Stable contract | ✅ |
 | Standalone CLI | ✅ | ✅ |
+| Structured Decision Brief | ⚠️ Initial post-`v1.0.0` implementation | ✅ Hardened |
+| Host memory publisher | ⚠️ Initial post-`v1.0.0` implementation | ✅ Hardened |
 | Log events | ✅ Manual call | ✅ Auto after tasks |
 | Learn strategies/preferences/rules from feedback | ✅ Manual call | ✅ Auto trigger |
 | Weight decay | ❌ | ✅ Heartbeat job |

@@ -41,6 +41,8 @@ Self-Evolving Agent:
 |---------|-------------|
 | **Strategy Retrieval** | Get relevant strategies before task execution |
 | **OpenClaw Session Brief** | Build a ready-to-inject memory block for session start and task preflight |
+| **Decision Brief** | Build a structured task-start packet for better decision quality |
+| **Host Memory Publishing** | Project governed memory into OpenClaw-style `MEMORY.md` and daily memory files |
 | **Event Logging** | Record events for learning |
 | **Immediate Learning** | Turn direct feedback into strategies, preferences, or error rules |
 | **Preference Memory** | Surface user communication and workflow preferences |
@@ -68,6 +70,7 @@ payload = adapter.session_start({
     "channel": "blog",
 })
 print(payload["brief"]["summary"])
+print(payload["decision_brief"])
 print(payload["prompt_block"])
 
 # After task: log event
@@ -157,6 +160,7 @@ Ensure system stability:
 | [ROADMAP.md](./docs/ROADMAP.md) | Post-1.0.0 milestone plan |
 | [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System architecture |
 | [DESIGN.md](./docs/DESIGN.md) | Design principles and decisions |
+| [DECISION_LAYER.md](./docs/DECISION_LAYER.md) | Projection layer design for host memory publishing and decision briefs |
 | [INSTALL.md](./docs/INSTALL.md) | Installation guide |
 
 ## Current Release (v1.0.0)
@@ -171,6 +175,24 @@ Ensure system stability:
 - [x] Capacity tracking and cleanup trigger
 - [x] Hard limits and safety boundaries
 - [x] Complete documentation
+
+## Current OpenClaw-Facing Capabilities
+
+The current repository state is usable for personal OpenClaw workflows.
+
+What works today:
+
+- `session-start` returns both a backward-compatible memory payload and a structured `decision_brief`
+- `render_openclaw_memory()` produces a prompt-ready block containing:
+  - `Decision Brief`
+  - `Relevant Memory`
+- `publish-memory` writes governed outputs into OpenClaw-style host memory files:
+  - `MEMORY.md`
+  - `memory/YYYY-MM-DD.md`
+- the adapter and CLI both expose the same projection / decision-enhancement flow
+- tests cover the structured brief, host-memory publishing, adapter behavior, and CLI behavior
+
+This is enough to use Agent-Memory as a local decision-enhancement layer for OpenClaw in a personal setup.
 
 ## v1.0.0 Definition
 
@@ -205,6 +227,7 @@ Primary commands:
 - `task-complete`
 - `user-feedback`
 - `record-error`
+- `publish-memory`
 
 See [CLI.md](./docs/CLI.md) for the stable input/output contract.
 
@@ -252,9 +275,16 @@ Before doing anything else:
 For OpenClaw, this project is now centered on one primary loop:
 
 1. **Session start / task preflight**: call `OpenClawMemoryAdapter.session_start()`
-2. **Task execution**: use the returned strategies, preferences, and error rules
+2. **Task execution**: use the returned Decision Brief, strategies, preferences, and error rules
 3. **Task completion**: call `OpenClawMemoryAdapter.task_complete()`
 4. **Direct correction**: call `OpenClawMemoryAdapter.user_feedback()` or `OpenClawMemoryAdapter.record_error()`
+
+The next design layer on top of this loop is the projection / decision layer:
+
+- publish stable high-value memory into OpenClaw's own memory channel
+- generate a task-start Decision Brief for immediate decision quality
+
+See [DECISION_LAYER.md](./docs/DECISION_LAYER.md).
 
 ## Philosophy
 
@@ -268,8 +298,22 @@ This project is guided by these principles:
 ## Current Boundaries
 
 - Retrieval is lightweight keyword/context matching, not semantic search yet.
+- The decision layer is implemented, but the selector/ranker is still heuristic and intentionally simple.
+- Host-memory publishing works, but sync policy is still basic and explicit-call driven.
+- Conflict resolution and incremental merge behavior are still lightweight.
 - Cleanup is implemented for retention and hard limits; archival and decay are still roadmap items.
 - The standalone contract is local-process and file-backed; HTTP/service deployment remains post-`v1.0.0`.
+- OpenClaw consumption is still integration-dependent; this project does not yet enforce runtime usage inside OpenClaw.
+
+## Stronger Upgrades Ahead
+
+The next meaningful hardening steps are:
+
+- improve ranking quality for strategies, preferences, and risk alerts
+- harden host-memory publishing with better merge/update rules
+- add stronger sync policy for when to refresh durable memory vs daily memory
+- add preview / dry-run support for memory publishing
+- improve conflict handling when multiple memories compete for the same projection slot
 
 ## Testing
 

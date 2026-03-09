@@ -84,10 +84,15 @@ class AgentMemoryCliTests(unittest.TestCase):
 
         self.assertEqual(task_output["event"]["type"], "task_complete")
         self.assertIn("brief", session_output)
+        self.assertIn("decision_brief", session_output)
         self.assertIn("prompt_block", session_output)
+        self.assertIn("### Priority Preferences", session_output["prompt_block"])
+        self.assertIn("### Relevant Strategies", session_output["prompt_block"])
+        self.assertIn("### Risk Alerts", session_output["prompt_block"])
         self.assertIn("### Strategies", session_output["prompt_block"])
         self.assertIn("### User Preferences", session_output["prompt_block"])
         self.assertIn("### Error Rules", session_output["prompt_block"])
+        self.assertIn("## Decision Brief", prompt_only)
         self.assertIn("## Relevant Memory", prompt_only)
 
         event_files = list((self.memory_home / "events").glob("*.jsonl"))
@@ -117,6 +122,35 @@ class AgentMemoryCliTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Field 'context' is required", result.stderr)
+
+    def test_cli_publish_memory_creates_host_files(self):
+        feedback_payload = {
+            "goal": "Generate images",
+            "context": {"task": "image_generation", "workspace": "openclaw"},
+            "action": "Used emoji",
+            "feedback": "Don't use emoji, use text instead",
+        }
+        preference_payload = {
+            "goal": "Respond to the user",
+            "context": {"surface": "chat", "workspace": "openclaw"},
+            "action": "Sent a verbose answer",
+            "feedback": "Be concise",
+            "memory_type": "preference",
+            "category": "communication_style",
+        }
+        target_root = self.temp_dir / "workspace"
+        publish_payload = {
+            "context": {"task": "image_generation", "workspace": "openclaw", "surface": "chat"},
+            "target_path": str(target_root),
+        }
+
+        self.run_cli("user-feedback", feedback_payload)
+        self.run_cli("user-feedback", preference_payload)
+        publish_output = self.run_cli("publish-memory", publish_payload)
+
+        self.assertTrue(Path(publish_output["memory_file"]).exists())
+        self.assertTrue(Path(publish_output["daily_file"]).exists())
+        self.assertIn("decision_brief", publish_output)
 
     def run_cli(
         self,

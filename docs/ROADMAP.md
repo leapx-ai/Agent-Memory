@@ -12,6 +12,7 @@ Interpretation:
 - The OpenClaw adapter exists
 - A standalone CLI contract exists
 - Tests cover the standalone contract and governance basics
+- The first decision-enhancement slice now exists on top of the stable `v1.0.0` base
 
 ## v1.0.0 Goal
 
@@ -83,6 +84,22 @@ Completed in `v1.0.0`:
 - Add release-oriented installation steps
 - Document version boundary: what `v1.0.0` guarantees and what it does not
 
+### M5: Decision Enhancement Layer
+
+Initial slice completed:
+
+- first structured Decision Brief
+- first host-memory publisher
+- first selector / ranker on top of raw retrieval
+- adapter and CLI exposure for the new layer
+
+Remaining hardening:
+
+- harden the selector / ranker that sits on top of raw retrieval
+- harden the publisher for durable and recent OpenClaw host memory projection
+- refine the structured Decision Brief beyond the initial implementation
+- keep projection outputs separate from source-of-truth storage and governance
+
 ## Post-1.0.0
 
 ### v1.1.0 - Automation
@@ -90,6 +107,9 @@ Completed in `v1.0.0`:
 - Automatic event logging after tasks
 - Automatic learning triggers
 - Heartbeat-based governance jobs
+- Decision Brief hardening and ranking improvements
+- Host memory publishing hardening for OpenClaw-facing projection
+- Better sync policy for durable vs daily host memory
 
 ### v1.2.0 - Intelligence
 
