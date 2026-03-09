@@ -1,0 +1,23 @@
+# Error Rules Template
+# Learn from mistakes to avoid repeating them
+
+rules:
+  # Example error rules (customize for your use case)
+  
+  - id: example-error-001
+    trigger: "Re-researching already verified solutions"
+    root_cause: "Not reading previous records before starting task"
+    prevention: "Always check memory records before starting repetitive tasks"
+    weight: 0.9
+    
+  - id: example-error-002
+    trigger: "User reports same issue multiple times"
+    root_cause: "Feedback not properly converted to strategy"
+    prevention: "Immediately call learn_immediately() when user gives feedback"
+    weight: 0.95
+    
+  # Add your own error rules
+  # - id: your-error-001
+  #   trigger: "When [specific error occurs]"
+  #   root_cause: "The underlying cause"
+  #   prevention: "How to prevent it"

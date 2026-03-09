@@ -1,0 +1,46 @@
+# 记忆治理配置
+# 核心原则：memory_size ≪ event_size
+# 生产环境：必须有硬限制，确保不会失控
+
+# === 归档策略（设计决策）===
+# 高价值归档：
+# - 普通事件 7 天后删除
+# - 产生了策略的事件，归档保留
+# - 归档大小 ≈ 策略数量 × 事件大小，可控
+# - 支持从归档重新学习
+
+events:
+  # === 硬限制（不可超过） ===
+  max_size_mb: 10          # 事件文件最大 10MB
+  max_count: 1000          # 最多 1000 条事件
+  cleanup_trigger: 0.8     # 达到 80% 容量时触发清理
+  
+  # === 软限制 ===
+  retention_days: 7
+  meaningful_only: true
+  # 只记录以下类型的事件
+  allowed_types:
+    - user_feedback      # 用户反馈
+    - error              # 错误
+    - new_pattern        # 新模式发现
+    - strategy_success   # 策略成功验证
+    - strategy_failure   # 策略失败
+
+strategies:
+  max_count: 100
+  min_weight: 0.3
+  merge_threshold: 0.8
+  
+  # 权重衰减
+  decay:
+    enabled: true
+    daily_rate: 0.05
+  
+  # 权重更新
+  update:
+    success_boost: 0.1
+    failure_penalty: 0.2
+
+cleanup:
+  schedule: daily
+  archive_path: ~/.openclaw/memory-system/archive/

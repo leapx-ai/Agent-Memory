@@ -1,0 +1,23 @@
+# User Preferences Template
+# Learn from user interactions
+
+preferences:
+  # Example preferences (customize for your user)
+  
+  - id: example-pref-001
+    category: "communication_style"
+    preference: "Be concise, avoid mechanical responses"
+    weight: 0.9
+    evidence: "User prefers direct communication"
+    
+  - id: example-pref-002
+    category: "work_style"
+    preference: "Verify solution feasibility before implementing"
+    weight: 0.85
+    evidence: "User values reliability over speed"
+    
+  # Add your own preferences
+  # - id: your-pref-001
+  #   category: "category_name"
+  #   preference: "What the user prefers"
+  #   weight: 0.8

@@ -1,0 +1,29 @@
+# Task Strategies Template
+# Format: condition → action
+# Weight: 0.0-1.0, higher = higher priority
+
+strategies:
+  # Example strategies (customize for your use case)
+  
+  - id: example-001
+    condition: "Performing repetitive tasks"
+    action: "Check previous records first, reuse verified solutions"
+    weight: 0.9
+    source: "example"
+    created: "2026-03-09"
+    context: ["task_execution"]
+    
+  - id: example-002
+    condition: "User explicitly corrects an action"
+    action: "Immediately update strategy and record the feedback"
+    weight: 0.95
+    source: "example"
+    created: "2026-03-09"
+    context: ["user_interaction"]
+    
+  # Add your own strategies based on your agent's tasks
+  # - id: your-strategy-001
+  #   condition: "When [specific condition]"
+  #   action: "Then [specific action]"
+  #   weight: 0.8
+  #   source: "user_feedback"
