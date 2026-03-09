@@ -2,7 +2,12 @@
 
 ## Overview
 
-This document describes the architecture of a self-evolving memory system for AI agents.
+This document describes the architecture of a self-evolving memory system for AI agents, with the current implementation focused on serving OpenClaw.
+
+Release status:
+
+- Current state: `v1.0.0`
+- Release meaning: independent memory governance system callable by OpenClaw
 
 ## Core Principle
 
@@ -74,6 +79,17 @@ Self-Evolving Agent:
                    Back to Agent Runtime
 ```
 
+## Deployment Model
+
+Agent-Memory is being positioned as an independent subsystem, not an OpenClaw-internal memory file bundle.
+
+For `v1.0.0`, the intended layers are:
+
+- `memory.py`: core storage, retrieval, learning, and governance logic
+- `openclaw_integration.py`: OpenClaw lifecycle adapter
+- CLI surface: standalone invocation boundary for non-import-based usage
+- OpenClaw runtime: external caller that consumes the adapter or CLI contract
+
 ## Core Modules
 
 ### 1. Experience Logger
@@ -117,6 +133,12 @@ Three types:
 - **Error Memory**: Mistakes to avoid
 - **Procedural Memory** (Strategies): How to behave
 
+Current OpenClaw-facing implementation stores and retrieves:
+
+- **Task Strategies**: `condition -> action`
+- **User Preferences**: communication/workflow preferences
+- **Error Rules**: `trigger -> prevention`
+
 ### 5. Retrieval Engine
 
 Find relevant strategies:
@@ -124,6 +146,12 @@ Find relevant strategies:
 - Semantic similarity matching
 - Weight-based ranking
 - Context relevance scoring
+
+Current implementation note:
+
+- Retrieval is lightweight keyword/context scoring
+- OpenClaw can consume the result through `build_openclaw_brief()` or `render_openclaw_memory()`
+- The recommended runtime hook layer is `openclaw_integration.py`
 
 ## Data Structures
 
@@ -153,6 +181,30 @@ Find relevant strategies:
   context: ["content_creation"]
 ```
 
+### User Preference
+
+```yaml
+- id: preference-001
+  category: "communication_style"
+  preference: "Be concise, avoid mechanical responses"
+  weight: 0.9
+  evidence: "User prefers direct communication"
+  created: "2026-03-09"
+  context: ["chat"]
+```
+
+### Error Rule
+
+```yaml
+- id: rule-001
+  trigger: "Using emoji in generated images"
+  root_cause: "Renderer fails on emoji glyphs"
+  prevention: "Use plain text labels instead of emoji"
+  weight: 0.95
+  created: "2026-03-09"
+  context: ["image_generation"]
+```
+
 ## Hard Limits
 
 Ensure system stability:
@@ -178,6 +230,7 @@ Only meaningful events enter the system:
 allowed_types:
   - user_feedback      # Explicit user feedback
   - error              # System errors
+  - task_complete      # Completed tasks
   - new_pattern        # New pattern discovered
   - strategy_success   # Strategy validation
   - strategy_failure   # Strategy failure
@@ -225,17 +278,26 @@ Design decision: **Archive events that generated strategies**
 OpenClaw Agent
      │
      ├─→ Session Start
-     │      └─→ Read strategies/*.yaml (via AGENTS.md)
+     │      └─→ OpenClaw adapter or CLI
      │
      ├─→ Task Complete
-     │      └─→ log_event() call
+     │      └─→ standalone Agent-Memory call
      │
      ├─→ User Feedback
-     │      └─→ learn_immediately() call
+     │      └─→ standalone Agent-Memory call
+     │             ├─→ strategy
+     │             ├─→ preference
+     │             └─→ rule
      │
      └─→ Heartbeat (scheduled)
             └─→ Governance: decay, cleanup, archive
 ```
+
+For `v1.0.0`, the preferred integration order is:
+
+1. OpenClaw calls the Python adapter directly if both live in the same environment.
+2. Otherwise, OpenClaw calls the future CLI surface with structured payloads.
+3. HTTP/service deployment remains post-`v1.0.0`.
 
 ## Future Work
 

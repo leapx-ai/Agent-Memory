@@ -1,6 +1,11 @@
 # Architecture Design Principles
 
-This document outlines the core design principles and decisions for the Agent Memory System.
+This document outlines the core design principles and decisions for the Agent Memory System, with an emphasis on OpenClaw integration.
+
+Release intent:
+
+- Current state: `v1.0.0`
+- `v1.0.0`: standalone memory governance system callable by OpenClaw
 
 ## Core Design Philosophy
 
@@ -126,6 +131,8 @@ Memory System:
 
 ### OpenClaw Integration
 
+Recommended implementation surface: use `openclaw_integration.py` as the lifecycle adapter instead of calling low-level memory primitives directly from the runtime.
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    OpenClaw Agent                        │
@@ -133,17 +140,17 @@ Memory System:
 │                                                          │
 │  Session Start (AGENTS.md)                              │
 │       ↓                                                  │
-│  Read strategies/*.yaml                                 │
+│  Python adapter or standalone CLI                       │
 │       ↓                                                  │
-│  Apply to current task                                  │
+│  Apply strategies + preferences + error rules           │
 │                                                          │
 │  Task Complete                                          │
 │       ↓                                                  │
-│  log_event() ← NOT AUTOMATIC YET (v1.1.0)              │
+│  standalone Agent-Memory call                           │
 │                                                          │
 │  User Feedback                                          │
 │       ↓                                                  │
-│  learn_immediately() ← NOT AUTOMATIC YET (v1.1.0)      │
+│  standalone Agent-Memory call                           │
 │                                                          │
 │  Heartbeat (scheduled)                                  │
 │       ↓                                                  │
@@ -152,15 +159,18 @@ Memory System:
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Current vs Future Integration
+### Release Progression
 
 | Feature | v1.0.0 | v1.1.0 (Planned) |
 |---------|--------|------------------|
-| Read strategies | ✅ Manual (via AGENTS.md) | ✅ Manual |
-| Log events | ⚠️ Manual call needed | ✅ Auto after tasks |
-| Learn from feedback | ⚠️ Manual call needed | ✅ Auto trigger |
-| Weight decay | ❌ Not implemented | ✅ Heartbeat job |
-| Cleanup/archive | ❌ Not implemented | ✅ Heartbeat job |
+| Python memory engine | ✅ Stable contract | ✅ |
+| OpenClaw adapter | ✅ Stable contract | ✅ |
+| Standalone CLI | ✅ | ✅ |
+| Log events | ✅ Manual call | ✅ Auto after tasks |
+| Learn strategies/preferences/rules from feedback | ✅ Manual call | ✅ Auto trigger |
+| Weight decay | ❌ | ✅ Heartbeat job |
+| Cleanup | ✅ Triggered during writes | ✅ Heartbeat job |
+| Archive | ❌ | ✅ Heartbeat job |
 
 ---
 

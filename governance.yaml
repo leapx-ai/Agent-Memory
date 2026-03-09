@@ -23,11 +23,13 @@ events:
     - user_feedback      # 用户反馈
     - error              # 错误
     - new_pattern        # 新模式发现
+    - task_complete      # 任务完成
     - strategy_success   # 策略成功验证
     - strategy_failure   # 策略失败
 
 strategies:
   max_count: 100
+  max_size_kb: 50
   min_weight: 0.3
   merge_threshold: 0.8
   
@@ -43,4 +45,4 @@ strategies:
 
 cleanup:
   schedule: daily
-  archive_path: ~/.openclaw/memory-system/archive/
+  archive_path: archive/
