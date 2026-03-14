@@ -1,6 +1,6 @@
 # Roadmap
 
-This document defines the release target for Agent-Memory as an independent memory governance system that OpenClaw can consume.
+This document defines the release target for Agent-Memory as an independent memory governance system for agent runtimes, with OpenClaw as the current reference integration.
 
 ## Release Positioning
 
@@ -16,9 +16,9 @@ Interpretation:
 
 ## v1.0.0 Goal
 
-`v1.0.0` means Agent-Memory is usable as a standalone system for OpenClaw, not just as a collection of helper modules.
+`v1.0.0` means Agent-Memory is usable as a standalone system for a real agent runtime, not just as a collection of helper modules.
 
-At `v1.0.0`, OpenClaw should be able to treat Agent-Memory as an external dependency with a stable call contract.
+At `v1.0.0`, at least one real runtime should be able to treat Agent-Memory as an external dependency with a stable call contract. OpenClaw is that reference runtime today.
 
 ## v1.0.0 Scope
 
@@ -26,7 +26,7 @@ Required:
 
 - Stable storage and retrieval for events, strategies, user preferences, and error rules
 - Stable governance behavior for bootstrap, indexing, cleanup triggers, and hard limits
-- Stable OpenClaw lifecycle contract:
+- Stable lifecycle contract for the reference runtime:
   - session start / task preflight
   - task complete
   - user feedback
@@ -34,7 +34,7 @@ Required:
 - Standalone invocation surface:
   - Python SDK
   - CLI
-- Installation and usage documentation for independent consumption
+- Installation and usage documentation for independent core usage and adapter-based consumption
 - Automated tests for core standalone behavior
 
 Out of scope:
@@ -50,10 +50,10 @@ Out of scope:
 Completed in `v1.0.0`:
 
 - Stable storage and retrieval for strategies, preferences, and error rules
-- Stable OpenClaw adapter surface in `openclaw_integration.py`
+- Stable reference adapter surface in `openclaw_integration.py`
 - Standalone CLI in `agent_memory_cli.py`
 - Automated tests for adapter, CLI, bootstrap, indexing, and cleanup behavior
-- Versioned documentation for independent OpenClaw consumption
+- Versioned documentation for independent and adapter-based consumption
 
 ## Post-1.0.0 Milestones
 
@@ -65,7 +65,7 @@ Completed in `v1.0.0`:
 
 ### M2: Stable OpenClaw Contract
 
-- Keep `openclaw_integration.py` as the OpenClaw-oriented adapter surface
+- Keep `openclaw_integration.py` as the reference-runtime adapter surface
 - Freeze request/response shapes for session start, task completion, user feedback, and error recording
 - Ensure the adapter does not expose storage internals
 
@@ -76,7 +76,7 @@ Completed in `v1.0.0`:
   - `task-complete`
   - `user-feedback`
   - `record-error`
-- Preserve JSON file and stdin input compatibility so OpenClaw is not forced to import Python modules directly
+- Preserve JSON file and stdin input compatibility so runtimes are not forced to import Python modules directly
 
 ### M4: Release Hardening
 
@@ -96,7 +96,7 @@ Initial slice completed:
 Remaining hardening:
 
 - harden the selector / ranker that sits on top of raw retrieval
-- harden the publisher for durable and recent OpenClaw host memory projection
+- harden the publisher for durable and recent host-memory projection, with OpenClaw as the first target
 - refine the structured Decision Brief beyond the initial implementation
 - keep projection outputs separate from source-of-truth storage and governance
 
@@ -108,7 +108,7 @@ Remaining hardening:
 - Automatic learning triggers
 - Heartbeat-based governance jobs
 - Decision Brief hardening and ranking improvements
-- Host memory publishing hardening for OpenClaw-facing projection
+- Host memory publishing hardening for runtime-facing projection
 - Better sync policy for durable vs daily host memory
 
 ### v1.2.0 - Intelligence

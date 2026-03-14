@@ -2,12 +2,12 @@
 
 ## Overview
 
-This document describes the architecture of a self-evolving memory system for AI agents, with the current implementation focused on serving OpenClaw.
+This document describes the architecture of a self-evolving memory system for AI agents. The core is runtime-agnostic; OpenClaw is the current reference integration.
 
 Release status:
 
 - Current state: `v1.0.0`
-- Release meaning: independent memory governance system callable by OpenClaw
+- Release meaning: independent memory governance system with a stable reference adapter
 
 ## Core Principle
 
@@ -81,14 +81,16 @@ Self-Evolving Agent:
 
 ## Deployment Model
 
-Agent-Memory is being positioned as an independent subsystem, not an OpenClaw-internal memory file bundle.
+Agent-Memory is positioned as an independent subsystem, not a runtime-specific memory file bundle.
 
 For `v1.0.0`, the intended layers are:
 
 - `memory.py`: core storage, retrieval, learning, and governance logic
-- `openclaw_integration.py`: OpenClaw lifecycle adapter
+- `decision_layer.py`: projection, ranking, publishing, and Decision Brief packaging
+- `runtime_integration.py`: generic lifecycle adapter
+- `openclaw_integration.py`: reference lifecycle adapter
 - CLI surface: standalone invocation boundary for non-import-based usage
-- OpenClaw runtime: external caller that consumes the adapter or CLI contract
+- agent runtime: external caller that consumes the core directly, an adapter, or the CLI contract
 
 ## Core Modules
 
@@ -133,7 +135,7 @@ Three types:
 - **Error Memory**: Mistakes to avoid
 - **Procedural Memory** (Strategies): How to behave
 
-Current OpenClaw-facing implementation stores and retrieves:
+Current `v1.0.0` implementation stores and retrieves:
 
 - **Task Strategies**: `condition -> action`
 - **User Preferences**: communication/workflow preferences
@@ -150,16 +152,16 @@ Find relevant strategies:
 Current implementation note:
 
 - Retrieval is lightweight keyword/context scoring
-- OpenClaw can consume the result through `build_openclaw_brief()` or `render_openclaw_memory()`
-- The recommended runtime hook layer is `openclaw_integration.py`
+- A runtime can consume the result through `build_openclaw_brief()` or `render_openclaw_memory()`
+- `openclaw_integration.py` is the current reference hook layer
 
 ### 6. Decision Layer
 
-This layer sits between core retrieval and OpenClaw consumption.
+This layer sits between core retrieval and runtime consumption.
 
 Its job is not to own storage. Its job is to project governed memory into two host-facing outputs:
 
-- **Host Memory Projection**: publish durable and recent memory into OpenClaw memory files
+- **Host Memory Projection**: publish durable and recent memory into a host runtime's memory channel when one exists
 - **Decision Brief**: build a task-start packet containing the highest-value guidance for the current context
 
 Recommended internal components:
@@ -173,14 +175,14 @@ Current implementation status:
 
 - `retrieve_memory()` exists as unified retrieval
 - `build_decision_brief()` exists as the first structured Decision Brief builder
-- `build_openclaw_brief()` now wraps raw retrieval, Decision Brief output, and projection metadata
-- `render_openclaw_memory()` renders both a Decision Brief section and backward-compatible memory sections
-- `publish_openclaw_memory()` exists as the first host-memory publisher
+- `build_runtime_brief()` / `build_openclaw_brief()` wrap raw retrieval, Decision Brief output, and projection metadata
+- `render_runtime_memory()` / `render_openclaw_memory()` render both a Decision Brief section and backward-compatible memory sections
+- `publish_host_memory()` / `publish_openclaw_memory()` exist as the first host-memory publisher
 - sync policy currently remains basic and explicit-call driven
 
 Practical interpretation:
 
-- strong enough for a personal OpenClaw workflow
+- strong enough for a personal agent workflow
 - appropriate as a local projection / decision-enhancement layer
 - not yet hardened as a high-concurrency or multi-agent publishing system
 
@@ -328,11 +330,11 @@ OpenClaw Agent
 
 For `v1.0.0`, the preferred integration order is:
 
-1. OpenClaw calls the Python adapter directly if both live in the same environment.
-2. Otherwise, OpenClaw calls the future CLI surface with structured payloads.
+1. A runtime calls the core directly or uses a reference adapter if both live in the same environment.
+2. Otherwise, the runtime calls the CLI surface with structured payloads.
 3. HTTP/service deployment remains post-`v1.0.0`.
 
-For the next OpenClaw-facing design layer, see [DECISION_LAYER.md](./DECISION_LAYER.md).
+For the next projection / decision-enhancement design layer, see [DECISION_LAYER.md](./DECISION_LAYER.md).
 
 ## Future Work
 

@@ -152,6 +152,33 @@ class AgentMemoryCliTests(unittest.TestCase):
         self.assertTrue(Path(publish_output["daily_file"]).exists())
         self.assertIn("decision_brief", publish_output)
 
+    def test_cli_runtime_neutral_aliases_work(self):
+        feedback_payload = {
+            "goal": "Handle support incident",
+            "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+            "action": "Sent a long speculative diagnosis",
+            "feedback": "Check local logs first and keep the answer concise",
+            "memory_type": "preference",
+            "category": "response_style",
+        }
+        start_payload = {
+            "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+            "limit_per_type": 3,
+        }
+        publish_payload = {
+            "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+            "target_path": str(self.temp_dir / "support-bot-workspace"),
+        }
+
+        self.run_cli("user-feedback", feedback_payload)
+        start_output = self.run_cli("runtime-start", start_payload)
+        publish_output = self.run_cli("publish-host-memory", publish_payload)
+
+        self.assertIn("decision_brief", start_output)
+        self.assertIn("prompt_block", start_output)
+        self.assertTrue(Path(publish_output["memory_file"]).exists())
+        self.assertTrue(Path(publish_output["daily_file"]).exists())
+
     def run_cli(
         self,
         command: str,

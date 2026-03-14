@@ -3,7 +3,7 @@
 Release status:
 
 - Current state: `v1.0.0`
-- Release meaning: standalone memory governance system callable by OpenClaw
+- Release meaning: standalone memory governance system with a stable reference adapter
 
 ## Prerequisites
 
@@ -30,9 +30,64 @@ python3 memory.py
 python3 agent_memory_cli.py --help
 ```
 
-The standalone CLI is part of `v1.0.0` and is the recommended portability surface when OpenClaw should call Agent-Memory as an external dependency.
+The standalone CLI is part of `v1.0.0` and is the recommended portability surface when an external runtime should call Agent-Memory as a separate dependency.
+
+## Recommended Integration Order
+
+For a new runtime, the preferred order is:
+
+1. `runtime_integration.py` when the runtime can import Python directly
+2. `agent_memory_cli.py` when the runtime should stay process-isolated
+3. `openclaw_integration.py` only when you explicitly want the OpenClaw compatibility surface
+
+## Generic Runtime Usage
+
+The core system can be used directly without the OpenClaw adapter:
+
+```python
+from runtime_integration import AgentMemoryAdapter
+
+adapter = AgentMemoryAdapter()
+
+payload = adapter.session_start({
+    "task": "your_task",
+    "workspace": "your_workspace",
+})
+print(payload["decision_brief"])
+
+adapter.task_complete(
+    goal="Your goal",
+    context={"key": "value"},
+    action="What you did",
+    outcome="success",
+    feedback="Optional user feedback",
+)
+```
+
+## Usage via Generic CLI
+
+```bash
+python3 agent_memory_cli.py runtime-start --json '{
+  "context": {
+    "task": "incident_triage",
+    "workspace": "support-bot",
+    "surface": "chat"
+  }
+}'
+
+python3 agent_memory_cli.py publish-host-memory --json '{
+  "context": {
+    "task": "incident_triage",
+    "workspace": "support-bot",
+    "surface": "chat"
+  },
+  "target_path": "/tmp/support-bot-workspace"
+}'
+```
 
 ## Integration with OpenClaw
+
+OpenClaw is the current reference integration. Use this section when you need OpenClaw-specific naming and examples.
 
 Add to your `AGENTS.md`:
 
@@ -85,17 +140,17 @@ adapter.user_feedback(
 )
 ```
 
-## Usage via CLI
+## Usage via OpenClaw-Oriented CLI
 
 ```bash
-python3 agent_memory_cli.py session-start --json '{
+python3 agent_memory_cli.py runtime-start --json '{
   "context": {
     "task": "your_task",
     "workspace": "your_workspace"
   }
 }'
 
-python3 agent_memory_cli.py publish-memory --json '{
+python3 agent_memory_cli.py publish-host-memory --json '{
   "context": {
     "task": "your_task",
     "workspace": "your_workspace"
@@ -106,7 +161,7 @@ python3 agent_memory_cli.py publish-memory --json '{
 
 See [CLI.md](./CLI.md) for the full standalone contract.
 
-If you want the default persistent location, omit `AGENT_MEMORY_HOME` and the system will use `~/.openclaw/memory-system/`.
+If you want the default persistent location, omit `AGENT_MEMORY_HOME` and the system will use `~/.openclaw/memory-system/`. The default path is OpenClaw-shaped for convenience, but the core system itself is not limited to OpenClaw.
 
 ## Testing
 

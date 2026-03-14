@@ -1,22 +1,22 @@
 # Decision Layer Design
 
-This document defines the layer that sits between the Agent-Memory core and OpenClaw consumption.
+This document defines the layer that sits between the Agent-Memory core and runtime consumption.
 
-Its purpose is not to replace the storage or learning core. Its purpose is to turn governed memory into decision-ready outputs that OpenClaw can consume with minimal extra reasoning.
+Its purpose is not to replace the storage or learning core. Its purpose is to turn governed memory into decision-ready outputs that a host runtime can consume with minimal extra reasoning. OpenClaw is the current reference target.
 
 ## Problem
 
 Today, the core engine can already:
 
 - retrieve strategies, preferences, and error rules
-- build an OpenClaw-facing brief
+- build a runtime-facing brief
 - render a Markdown memory block
 
 That is useful, but it is still close to raw retrieval.
 
 The missing layer is the one that answers:
 
-- which memory items deserve to reach OpenClaw now
+- which memory items deserve to reach the runtime now
 - which items should become long-lived host memory
 - which items should become short-lived stage memory
 - which items should be elevated into a task-start decision brief
@@ -25,14 +25,14 @@ In short:
 
 - core engine = source of truth and governance
 - decision layer = projection and decision enhancement
-- OpenClaw memory = host recall channel
+- host memory = host recall channel
 
 ## Scope
 
 This layer is responsible for:
 
 - selecting and ranking governed memory for host consumption
-- publishing high-value memory into OpenClaw memory files
+- publishing high-value memory into host memory files when the runtime exposes a memory channel
 - building task-start decision briefs
 - deciding when to refresh durable host memory versus task-local briefs
 
@@ -41,11 +41,11 @@ This layer is not responsible for:
 - raw event logging
 - immediate learning from feedback
 - long-term storage ownership
-- OpenClaw runtime enforcement
+- runtime enforcement
 
 ## Design Goal
 
-The design goal is not "send more memory to OpenClaw."
+The design goal is not "send more memory to the runtime."
 
 The design goal is:
 
@@ -62,8 +62,8 @@ flowchart TD
     GOV --> SEL["selector + ranker"]
     SEL --> PUB["publisher"]
     SEL --> BRIEF["decision brief builder"]
-    PUB --> HOST["OpenClaw host memory"]
-    BRIEF --> OC["OpenClaw runtime input"]
+    PUB --> HOST["host memory channel"]
+    BRIEF --> OC["runtime input"]
     HOST --> OC
 ```
 
@@ -73,7 +73,7 @@ This layer produces two distinct outputs.
 
 ### 1. Host Memory Projection
 
-This is memory published into OpenClaw's own memory channel.
+This is memory published into the host runtime's own memory channel.
 
 Targets:
 
@@ -143,7 +143,7 @@ Output shape:
 
 Purpose:
 
-- project selected memory into OpenClaw host memory files
+- project selected memory into host runtime memory files
 
 Responsibilities:
 
@@ -162,7 +162,7 @@ Constraints:
 
 Purpose:
 
-- build a task-start packet that gives OpenClaw high-value judgment input
+- build a task-start packet that gives the runtime high-value judgment input
 
 Recommended sections:
 
@@ -186,7 +186,7 @@ Suggested shape:
   "priority_preferences": ["Keep answers concise."],
   "relevant_strategies": ["Check local docs before editing tracked docs."],
   "risk_alerts": ["Do not publish raw event history into host memory."],
-  "current_focus": ["Improve memory projection quality for OpenClaw."]
+  "current_focus": ["Improve memory projection quality for the active runtime."]
 }
 ```
 
@@ -216,9 +216,9 @@ The layer must preserve this boundary:
 
 - Agent-Memory core owns learning, storage, and governance
 - the decision layer owns projection and packaging
-- OpenClaw owns runtime execution and final reasoning
+- the host runtime owns execution and final reasoning
 
-OpenClaw should not need to:
+The host runtime should not need to:
 
 - read Agent-Memory YAML files directly
 - inspect internal indexes
@@ -231,11 +231,11 @@ The current code already contains the first draft of this layer:
 
 - `retrieve_memory()` provides unified retrieval
 - `build_decision_brief()` provides the first structured task-start packet
-- `build_openclaw_brief()` wraps raw retrieval, Decision Brief output, and projection metadata
-- `render_openclaw_memory()` renders both a Decision Brief section and backward-compatible memory sections
-- `publish_openclaw_memory()` writes durable and recent host-memory projections
+- `build_runtime_brief()` and `build_openclaw_brief()` wrap raw retrieval, Decision Brief output, and projection metadata
+- `render_runtime_memory()` and `render_openclaw_memory()` render both a Decision Brief section and backward-compatible memory sections
+- `publish_host_memory()` and `publish_openclaw_memory()` write durable and recent host-memory projections
 
-This means the first implementation slice is no longer hypothetical. It exists and is usable in a local personal OpenClaw workflow.
+This means the first implementation slice is no longer hypothetical. It exists and is usable in a local personal agent workflow, with OpenClaw as the current best-documented example.
 
 ## What Works Today
 
@@ -247,12 +247,12 @@ The current implementation can already do the following:
   - `Relevant Strategies`
   - `Risk Alerts`
   - `Current Focus`
-- render a prompt-ready Markdown block for OpenClaw session start
+- render a prompt-ready Markdown block for runtime session start
 - publish stable memory into `MEMORY.md`
 - publish recent or stage-specific memory into `memory/YYYY-MM-DD.md`
 - expose the same behavior through the core API, adapter, and CLI
 
-In practice, this is sufficient for a personal OpenClaw setup where memory injection and host-memory publication are explicit workflow steps.
+In practice, this is sufficient for a personal setup where memory injection and host-memory publication are explicit workflow steps.
 
 ## What Is Not Yet Fully Hardened
 
@@ -274,7 +274,7 @@ The next implementation iteration should aim for a contract like this:
 select_projection(context, limit_per_type=3) -> ProjectionSet
 build_decision_brief(context, limit_per_type=3) -> DecisionBrief
 render_decision_brief(context, format="markdown") -> str
-publish_openclaw_memory(context=None, mode="incremental") -> PublishResult
+publish_host_memory(context=None, mode="incremental") -> PublishResult
 ```
 
 Possible data objects:
@@ -324,8 +324,8 @@ The next meaningful upgrades for this layer are:
 
 This design does not assume:
 
-- OpenClaw runtime hooks
-- forced consumption by OpenClaw
+- runtime hooks
+- forced consumption by a specific runtime
 - plugin infrastructure
 - semantic/vector retrieval
 
@@ -335,4 +335,4 @@ Those can be added later without changing the role of this layer.
 
 The decision layer is the bridge between governed memory and better agent decisions.
 
-It exists so that Agent-Memory does not merely store experience. It turns experience into the specific, bounded, decision-ready guidance that OpenClaw can actually use.
+It exists so that Agent-Memory does not merely store experience. It turns experience into specific, bounded, decision-ready guidance that a host runtime can actually use.

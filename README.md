@@ -1,6 +1,6 @@
 # Agent Memory System
 
-A self-evolving memory system for AI agents, currently optimized as a memory layer for OpenClaw. It enables the agent to learn from experience and continuously improve its behavior strategies, user preference handling, and error prevention.
+A self-evolving memory governance system for AI agents. It enables an agent runtime to learn from experience and continuously improve its behavior strategies, user preference handling, and error prevention. OpenClaw is the current reference integration, not the architectural boundary of the project.
 
 ## Why This Matters
 
@@ -40,9 +40,9 @@ Self-Evolving Agent:
 | Feature | Description |
 |---------|-------------|
 | **Strategy Retrieval** | Get relevant strategies before task execution |
-| **OpenClaw Session Brief** | Build a ready-to-inject memory block for session start and task preflight |
+| **Runtime Session Brief** | Build a ready-to-inject memory block for session start and task preflight |
 | **Decision Brief** | Build a structured task-start packet for better decision quality |
-| **Host Memory Publishing** | Project governed memory into OpenClaw-style `MEMORY.md` and daily memory files |
+| **Host Memory Publishing** | Project governed memory into a host runtime memory channel such as `MEMORY.md` and daily memory files |
 | **Event Logging** | Record events for learning |
 | **Immediate Learning** | Turn direct feedback into strategies, preferences, or error rules |
 | **Preference Memory** | Surface user communication and workflow preferences |
@@ -52,6 +52,43 @@ Self-Evolving Agent:
 | **Bootstrap Setup** | Auto-create required directories and files on first run |
 
 ## Quick Start
+
+### Generic Runtime Usage
+
+```python
+from runtime_integration import AgentMemoryAdapter
+
+adapter = AgentMemoryAdapter()
+
+# Retrieve governed memory before a task
+payload = adapter.session_start({
+    "task": "content_publishing",
+    "workspace": "blog",
+})
+print(payload["brief"]["summary"])
+print(payload["decision_brief"])
+
+# Log completion after a task
+adapter.task_complete(
+    goal="Publish content",
+    context={"task": "content_publishing", "channel": "blog"},
+    action="Used API to publish",
+    outcome="success",
+    feedback="Image rendering issue",
+)
+
+# Learn from direct feedback
+adapter.user_feedback(
+    goal="Respond to the user",
+    context={"surface": "chat"},
+    action="Sent a verbose answer",
+    feedback="Be concise, avoid mechanical responses",
+    memory_type="preference",
+    category="communication_style",
+)
+```
+
+### OpenClaw Adapter Usage
 
 ```python
 from openclaw_integration import (
@@ -166,15 +203,34 @@ Ensure system stability:
 ## Current Release (v1.0.0)
 
 - [x] Strategy storage and retrieval
-- [x] Preference and error-rule retrieval for OpenClaw
+- [x] Preference and error-rule retrieval
 - [x] Event logging
 - [x] Immediate learning into strategies, preferences, and rules
 - [x] First-run bootstrap for storage files
 - [x] Index rebuild after strategy updates
-- [x] OpenClaw session brief rendering
+- [x] Runtime session brief rendering
 - [x] Capacity tracking and cleanup trigger
 - [x] Hard limits and safety boundaries
 - [x] Complete documentation
+
+## Current Runtime Capabilities
+
+The current repository state is usable as a local memory governance core for a personal agent workflow.
+
+What works today:
+
+- governed storage for events, strategies, preferences, and error rules
+- explicit learning from corrective feedback and error events
+- structured `decision_brief` generation for task start
+- prompt-ready Markdown rendering through `render_runtime_memory()`
+- host-memory projection through `publish_host_memory()`
+- a stable generic lifecycle adapter in `runtime_integration.py`
+- a stable CLI surface with neutral aliases:
+  - `runtime-start`
+  - `publish-host-memory`
+- tests that cover the core engine, adapter, CLI, and decision layer
+
+This is enough to use Agent-Memory as a standalone decision-enhancement layer even outside OpenClaw. OpenClaw remains the best-documented integration path because it already has an adapter and host-memory projection flow.
 
 ## Current OpenClaw-Facing Capabilities
 
@@ -196,15 +252,15 @@ This is enough to use Agent-Memory as a local decision-enhancement layer for Ope
 
 ## v1.0.0 Definition
 
-`v1.0.0` is the release where Agent-Memory becomes a standalone memory governance system that OpenClaw can call as an external dependency, instead of being treated as an in-repo helper layer.
+`v1.0.0` is the release where Agent-Memory becomes a standalone memory governance system that an agent runtime can call as an external dependency, instead of being treated as an in-repo helper layer.
 
 The `v1.0.0` release must provide:
 
 - A stable memory engine for events, strategies, preferences, and error rules
-- A stable OpenClaw adapter layer for session start, task completion, feedback, and error ingestion
+- A stable adapter layer for at least one concrete runtime, with OpenClaw as the reference implementation
 - A standalone integration surface beyond raw imports, with CLI support as the default portability target
 - Governance guarantees with tested bootstrap, indexing, cleanup, and bounded storage behavior
-- Versioned documentation that explains how OpenClaw consumes the system without relying on internal implementation details
+- Versioned documentation that explains both standalone usage and runtime integration without relying on internal implementation details
 
 The `v1.0.0` release does not require:
 
@@ -223,13 +279,82 @@ python3 agent_memory_cli.py --help
 
 Primary commands:
 
-- `session-start`
+- `runtime-start` (preferred alias for `session-start`)
 - `task-complete`
 - `user-feedback`
 - `record-error`
-- `publish-memory`
+- `publish-host-memory` (preferred alias for `publish-memory`)
 
 See [CLI.md](./docs/CLI.md) for the stable input/output contract.
+
+## Runtime Positioning
+
+Agent-Memory should be understood in two layers:
+
+- `memory.py` and `decision_layer.py` form a runtime-agnostic memory governance core
+- `runtime_integration.py` provides the generic lifecycle adapter
+- runtime-specific adapters project that governed memory into a concrete execution environment
+
+Today:
+
+- `runtime_integration.py` is the neutral integration surface
+- `openclaw_integration.py` is the reference adapter
+- `publish-host-memory` is the preferred neutral CLI command
+
+This means OpenClaw is an important consumer, but not the only valid consumer.
+
+## Generic Runtime Integration
+
+For a new runtime, the recommended integration order is:
+
+1. Use `runtime_integration.py` if the runtime can import Python directly.
+2. Use the CLI if the runtime should stay process-isolated.
+3. Use runtime-specific adapters only when you need runtime-local defaults or compatibility naming.
+
+### Preferred Python Path
+
+```python
+from runtime_integration import AgentMemoryAdapter
+
+adapter = AgentMemoryAdapter()
+
+payload = adapter.session_start({
+    "task": "incident_triage",
+    "workspace": "support-bot",
+    "surface": "chat",
+})
+
+decision_brief = payload["decision_brief"]
+prompt_block = payload["prompt_block"]
+
+adapter.task_complete(
+    goal="Triage incident",
+    context={"task": "incident_triage", "workspace": "support-bot"},
+    action="Reviewed logs and proposed next steps",
+    outcome="success",
+)
+```
+
+### Preferred CLI Path
+
+```bash
+python3 agent_memory_cli.py runtime-start --json '{
+  "context": {
+    "task": "incident_triage",
+    "workspace": "support-bot",
+    "surface": "chat"
+  }
+}'
+
+python3 agent_memory_cli.py publish-host-memory --json '{
+  "context": {
+    "task": "incident_triage",
+    "workspace": "support-bot",
+    "surface": "chat"
+  },
+  "target_path": "/tmp/support-bot-workspace"
+}'
+```
 
 ## Roadmap
 
@@ -254,6 +379,8 @@ See [CLI.md](./docs/CLI.md) for the stable input/output contract.
 - [ ] Role-based access control
 
 ## Integration with OpenClaw
+
+OpenClaw is the current reference integration, not the required integration path.
 
 See [DESIGN.md](./docs/DESIGN.md#integration-architecture) for detailed integration architecture.
 
@@ -303,7 +430,7 @@ This project is guided by these principles:
 - Conflict resolution and incremental merge behavior are still lightweight.
 - Cleanup is implemented for retention and hard limits; archival and decay are still roadmap items.
 - The standalone contract is local-process and file-backed; HTTP/service deployment remains post-`v1.0.0`.
-- OpenClaw consumption is still integration-dependent; this project does not yet enforce runtime usage inside OpenClaw.
+- Reference-runtime consumption is still integration-dependent; this project does not yet enforce runtime usage from inside a host runtime.
 
 ## Stronger Upgrades Ahead
 

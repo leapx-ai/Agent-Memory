@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Decision-layer helpers for projecting governed memory into OpenClaw-facing outputs.
+Decision-layer helpers for projecting governed memory into runtime-facing outputs.
 """
 
 from datetime import datetime
@@ -37,6 +37,14 @@ class DecisionLayer:
         brief["decision_brief"] = decision_brief
         brief["projection"] = projection
         return brief
+
+    def build_runtime_brief(
+        self,
+        context: Dict[str, Any],
+        limit_per_type: int = 3,
+    ) -> Dict[str, Any]:
+        """Build a runtime-facing brief without exposing a runtime-specific name."""
+        return self.build_openclaw_brief(context, limit_per_type=limit_per_type)
 
     def build_decision_brief(
         self,
@@ -135,6 +143,14 @@ class DecisionLayer:
             )
 
         return "\n".join(lines)
+
+    def render_runtime_memory(
+        self,
+        context: Dict[str, Any],
+        limit_per_type: int = 3,
+    ) -> str:
+        """Render a prompt-ready runtime memory block."""
+        return self.render_openclaw_memory(context, limit_per_type=limit_per_type)
 
     def select_projection(
         self,
@@ -249,6 +265,21 @@ class DecisionLayer:
             },
             "decision_brief": decision_brief,
         }
+
+    def publish_host_memory(
+        self,
+        target_root: Optional[Path] = None,
+        context: Optional[Dict[str, Any]] = None,
+        limit_per_type: int = 3,
+        mode: str = "incremental",
+    ) -> Dict[str, Any]:
+        """Publish governed memory into a host runtime's memory channel."""
+        return self.publish_openclaw_memory(
+            target_root=target_root,
+            context=context,
+            limit_per_type=limit_per_type,
+            mode=mode,
+        )
 
     def _collect_memory_items(
         self,

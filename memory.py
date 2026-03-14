@@ -339,6 +339,17 @@ class MemorySystem:
             limit_per_type=limit_per_type,
         )
 
+    def build_runtime_brief(
+        self,
+        context: Dict[str, Any],
+        limit_per_type: int = 3,
+    ) -> Dict[str, Any]:
+        """构建通用运行时可消费的记忆摘要。"""
+        return self.decision_layer.build_runtime_brief(
+            context,
+            limit_per_type=limit_per_type,
+        )
+
     def build_decision_brief(
         self,
         context: Dict[str, Any],
@@ -357,6 +368,17 @@ class MemorySystem:
     ) -> str:
         """将记忆摘要渲染为适合 OpenClaw 提示词注入的 Markdown。"""
         return self.decision_layer.render_openclaw_memory(
+            context,
+            limit_per_type=limit_per_type,
+        )
+
+    def render_runtime_memory(
+        self,
+        context: Dict[str, Any],
+        limit_per_type: int = 3,
+    ) -> str:
+        """将记忆摘要渲染为适合通用运行时注入的 Markdown。"""
+        return self.decision_layer.render_runtime_memory(
             context,
             limit_per_type=limit_per_type,
         )
@@ -381,6 +403,21 @@ class MemorySystem:
     ) -> Dict[str, Any]:
         """将治理后的高价值记忆发布到 OpenClaw host memory 文件。"""
         return self.decision_layer.publish_openclaw_memory(
+            target_root=target_root,
+            context=context or {},
+            limit_per_type=limit_per_type,
+            mode=mode,
+        )
+
+    def publish_host_memory(
+        self,
+        target_root: Optional[Path] = None,
+        context: Optional[Dict[str, Any]] = None,
+        limit_per_type: int = 3,
+        mode: str = "incremental",
+    ) -> Dict[str, Any]:
+        """将治理后的高价值记忆发布到宿主 runtime 的 memory 通道。"""
+        return self.decision_layer.publish_host_memory(
             target_root=target_root,
             context=context or {},
             limit_per_type=limit_per_type,
@@ -927,6 +964,14 @@ def build_openclaw_brief(
     return get_memory().build_openclaw_brief(context, limit_per_type=limit_per_type)
 
 
+def build_runtime_brief(
+    context: Dict[str, Any],
+    limit_per_type: int = 3,
+) -> Dict[str, Any]:
+    """构建适合通用 runtime 使用的记忆摘要。"""
+    return get_memory().build_runtime_brief(context, limit_per_type=limit_per_type)
+
+
 def build_decision_brief(
     context: Dict[str, Any],
     limit_per_type: int = 3,
@@ -941,6 +986,14 @@ def render_openclaw_memory(
 ) -> str:
     """渲染适合注入 OpenClaw 提示词的 Markdown 记忆块。"""
     return get_memory().render_openclaw_memory(context, limit_per_type=limit_per_type)
+
+
+def render_runtime_memory(
+    context: Dict[str, Any],
+    limit_per_type: int = 3,
+) -> str:
+    """渲染适合注入通用 runtime 的 Markdown 记忆块。"""
+    return get_memory().render_runtime_memory(context, limit_per_type=limit_per_type)
 
 
 def select_projection(
@@ -959,6 +1012,21 @@ def publish_openclaw_memory(
 ) -> Dict[str, Any]:
     """将治理后的高价值记忆发布到 OpenClaw host memory 文件。"""
     return get_memory().publish_openclaw_memory(
+        target_root=target_root,
+        context=context or {},
+        limit_per_type=limit_per_type,
+        mode=mode,
+    )
+
+
+def publish_host_memory(
+    target_root: Optional[Path] = None,
+    context: Optional[Dict[str, Any]] = None,
+    limit_per_type: int = 3,
+    mode: str = "incremental",
+) -> Dict[str, Any]:
+    """将治理后的高价值记忆发布到宿主 runtime 的 memory 通道。"""
+    return get_memory().publish_host_memory(
         target_root=target_root,
         context=context or {},
         limit_per_type=limit_per_type,

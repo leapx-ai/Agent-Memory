@@ -33,7 +33,7 @@ def install_yaml_stub():
 def load_modules():
     """Reload local modules against the yaml stub."""
     install_yaml_stub()
-    for module_name in ("memory", "openclaw_integration"):
+    for module_name in ("memory", "runtime_integration", "openclaw_integration"):
         sys.modules.pop(module_name, None)
 
     memory = importlib.import_module("memory")

@@ -31,7 +31,8 @@ def install_yaml_stub():
 
 def load_memory_module():
     install_yaml_stub()
-    sys.modules.pop("memory", None)
+    for module_name in ("memory", "decision_layer"):
+        sys.modules.pop(module_name, None)
     return importlib.import_module("memory")
 
 
@@ -234,6 +235,39 @@ class MemorySystemTests(unittest.TestCase):
         self.assertIn("User Preferences", memory_file.read_text(encoding="utf-8"))
         self.assertIn("Daily Memory Projection", daily_file.read_text(encoding="utf-8"))
         self.assertIn("Task Decision Brief", daily_file.read_text(encoding="utf-8"))
+
+    def test_generic_runtime_aliases_match_openclaw_aliases(self):
+        self.memory_system.learn_immediately(
+            {
+                "type": "user_feedback",
+                "goal": "Generate images",
+                "context": {"task": "image_generation", "workspace": "openclaw"},
+                "feedback": "Don't use emoji, use text instead",
+            }
+        )
+        context = {"task": "image_generation", "workspace": "openclaw"}
+
+        openclaw_brief = self.memory_system.build_openclaw_brief(context)
+        runtime_brief = self.memory_system.build_runtime_brief(context)
+        self.assertEqual(runtime_brief["summary"], openclaw_brief["summary"])
+        self.assertEqual(runtime_brief["decision_brief"], openclaw_brief["decision_brief"])
+
+        self.assertEqual(
+            self.memory_system.render_runtime_memory(context),
+            self.memory_system.render_openclaw_memory(context),
+        )
+
+        target_root = self.temp_dir / "workspace-host"
+        runtime_publish = self.memory_system.publish_host_memory(
+            target_root=target_root,
+            context=context,
+        )
+        openclaw_publish = self.memory_system.publish_openclaw_memory(
+            target_root=target_root,
+            context=context,
+        )
+        self.assertEqual(runtime_publish["decision_brief"], openclaw_publish["decision_brief"])
+        self.assertEqual(runtime_publish["published"], openclaw_publish["published"])
 
 
 if __name__ == "__main__":

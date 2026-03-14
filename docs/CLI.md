@@ -1,6 +1,11 @@
 # CLI Contract
 
-Agent-Memory `v1.0.0` ships a standalone CLI so OpenClaw can call the system without importing Python modules directly.
+Agent-Memory `v1.0.0` ships a standalone CLI so external runtimes can call the system without importing Python modules directly.
+
+The CLI keeps the original OpenClaw-era command names for compatibility, but the preferred runtime-neutral entry points are now:
+
+- `runtime-start` as the preferred alias for `session-start`
+- `publish-host-memory` as the preferred alias for `publish-memory`
 
 ## Entry Point
 
@@ -11,12 +16,12 @@ python3 agent_memory_cli.py --help
 Optional storage override:
 
 ```bash
-python3 agent_memory_cli.py --home /tmp/agent-memory session-start --json '{"context":{"task":"example"}}'
+python3 agent_memory_cli.py --home /tmp/agent-memory runtime-start --json '{"context":{"task":"example"}}'
 ```
 
 ## Commands
 
-### `session-start`
+### `runtime-start` / `session-start`
 
 Build a session-start or task-preflight payload.
 
@@ -25,8 +30,8 @@ Input:
 ```json
 {
   "context": {
-    "task": "image_generation",
-    "workspace": "openclaw",
+    "task": "incident_triage",
+    "workspace": "support-bot",
     "surface": "chat"
   },
   "limit_per_type": 3
@@ -36,7 +41,7 @@ Input:
 Example:
 
 ```bash
-python3 agent_memory_cli.py session-start --input context.json
+python3 agent_memory_cli.py runtime-start --input context.json
 ```
 
 Output:
@@ -46,7 +51,7 @@ Output:
 - `decision_brief`
 - `prompt_block`
 
-Use `--prompt-only` if OpenClaw only needs the rendered Markdown block.
+Use `--prompt-only` if the runtime only needs the rendered Markdown block.
 
 ### `task-complete`
 
@@ -58,10 +63,10 @@ Input:
 {
   "goal": "Publish content",
   "context": {
-    "task": "content_publishing",
-    "workspace": "openclaw"
+    "task": "incident_triage",
+    "workspace": "support-bot"
   },
-  "action": "Used API to publish",
+  "action": "Reviewed error logs and drafted next steps",
   "outcome": "success",
   "feedback": "Optional note"
 }
@@ -84,7 +89,7 @@ Input:
   "goal": "Respond to the user",
   "context": {
     "surface": "chat",
-    "workspace": "openclaw"
+    "workspace": "support-bot"
   },
   "action": "Sent a verbose answer",
   "feedback": "Be concise",
@@ -109,13 +114,13 @@ Input:
 {
   "goal": "Generate image",
   "context": {
-    "task": "image_generation",
-    "workspace": "openclaw"
+    "task": "incident_triage",
+    "workspace": "support-bot"
   },
-  "action": "Used emoji in image label",
-  "outcome": "renderer_failed",
-  "prevention": "Use plain text labels instead of emoji",
-  "root_cause": "Renderer fails on emoji glyphs"
+  "action": "Skipped local logs and guessed the root cause",
+  "outcome": "misdiagnosis",
+  "prevention": "Check local logs before proposing a root cause",
+  "root_cause": "The diagnosis was made without checking the available evidence"
 }
 ```
 
@@ -125,20 +130,20 @@ Example:
 python3 agent_memory_cli.py record-error --input error.json
 ```
 
-### `publish-memory`
+### `publish-host-memory` / `publish-memory`
 
-Publish governed memory into OpenClaw-style host memory files.
+Publish governed memory into host memory files.
 
 Input:
 
 ```json
 {
   "context": {
-    "task": "image_generation",
-    "workspace": "openclaw",
+    "task": "incident_triage",
+    "workspace": "support-bot",
     "surface": "chat"
   },
-  "target_path": "/tmp/openclaw-workspace",
+  "target_path": "/tmp/support-bot-workspace",
   "limit_per_type": 3,
   "mode": "incremental"
 }
@@ -147,7 +152,7 @@ Input:
 Example:
 
 ```bash
-python3 agent_memory_cli.py publish-memory --input publish.json
+python3 agent_memory_cli.py publish-host-memory --input publish.json
 ```
 
 Output:
@@ -170,5 +175,5 @@ Output:
 ## Output Rules
 
 - Default output is JSON to stdout.
-- `session-start --prompt-only` outputs plain text Markdown.
+- `runtime-start --prompt-only` and `session-start --prompt-only` output plain text Markdown.
 - The CLI is designed for automation, so stdout is reserved for machine-readable results.

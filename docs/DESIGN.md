@@ -1,11 +1,11 @@
 # Architecture Design Principles
 
-This document outlines the core design principles and decisions for the Agent Memory System, with an emphasis on OpenClaw integration.
+This document outlines the core design principles and decisions for the Agent Memory System. The core is runtime-agnostic; OpenClaw is the current reference integration.
 
 Release intent:
 
 - Current state: `v1.0.0`
-- `v1.0.0`: standalone memory governance system callable by OpenClaw
+- `v1.0.0`: standalone memory governance system with a stable reference adapter
 
 ## Core Design Philosophy
 
@@ -129,18 +129,18 @@ Memory System:
 
 **Problem**: Raw retrieval results are not the same thing as decision-ready guidance.
 
-If Agent-Memory sends too much internal memory directly to OpenClaw, quality drops:
+If Agent-Memory sends too much internal memory directly to a runtime, quality drops:
 
 - host memory becomes noisy
 - task-start context becomes bloated
-- OpenClaw has to do too much second-order reasoning
+- the runtime has to do too much second-order reasoning
 
-**Decision**: Add a dedicated projection / decision layer between the core engine and OpenClaw-facing outputs.
+**Decision**: Add a dedicated projection / decision layer between the core engine and runtime-facing outputs.
 
 This layer is responsible for:
 
 - selecting which memory items deserve host visibility
-- publishing stable items into OpenClaw host memory
+- publishing stable items into a host runtime memory channel
 - producing a compact Decision Brief for task start
 - keeping publication and task-time packaging separate from source storage
 
@@ -155,7 +155,7 @@ This preserves the intended layering:
 
 - core engine = learning and governance
 - projection layer = packaging and delivery
-- OpenClaw = runtime execution
+- runtime = execution
 
 See [DECISION_LAYER.md](./DECISION_LAYER.md) for the concrete design.
 
@@ -163,7 +163,7 @@ See [DECISION_LAYER.md](./DECISION_LAYER.md) for the concrete design.
 
 ## Integration Architecture
 
-### OpenClaw Integration
+### Reference Runtime Integration
 
 Recommended implementation surface: use `openclaw_integration.py` as the lifecycle adapter instead of calling low-level memory primitives directly from the runtime.
 
@@ -200,7 +200,7 @@ Recommended implementation surface: use `openclaw_integration.py` as the lifecyc
 | Feature | v1.0.0 | v1.1.0 (Planned) |
 |---------|--------|------------------|
 | Python memory engine | ✅ Stable contract | ✅ |
-| OpenClaw adapter | ✅ Stable contract | ✅ |
+| Reference adapter | ✅ Stable contract | ✅ |
 | Standalone CLI | ✅ | ✅ |
 | Structured Decision Brief | ⚠️ Initial post-`v1.0.0` implementation | ✅ Hardened |
 | Host memory publisher | ⚠️ Initial post-`v1.0.0` implementation | ✅ Hardened |

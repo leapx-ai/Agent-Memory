@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from openclaw_integration import OpenClawMemoryAdapter
+    from runtime_integration import AgentMemoryAdapter
 
 VERSION = "1.0.0"
 
@@ -33,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     session_start = subparsers.add_parser(
         "session-start",
+        aliases=["runtime-start"],
         help="Build a memory payload for session start or task preflight.",
     )
     _add_json_input_options(session_start)
@@ -68,12 +69,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     publish_memory = subparsers.add_parser(
         "publish-memory",
-        help="Publish governed memory into OpenClaw host-memory files.",
+        aliases=["publish-host-memory"],
+        help="Publish governed memory into host-memory files.",
     )
     _add_json_input_options(publish_memory)
     publish_memory.add_argument(
         "--target-path",
-        help="Override the OpenClaw host-memory target root for this invocation.",
+        help="Override the host-memory target root for this invocation.",
     )
     publish_memory.add_argument(
         "--limit-per-type",
@@ -126,20 +128,20 @@ def load_payload(args: argparse.Namespace) -> Dict[str, Any]:
     return payload
 
 
-def build_adapter(home: Optional[str]) -> "OpenClawMemoryAdapter":
+def build_adapter(home: Optional[str]) -> "AgentMemoryAdapter":
     from memory import MemorySystem
-    from openclaw_integration import OpenClawMemoryAdapter
+    from runtime_integration import AgentMemoryAdapter
 
     base_path = Path(home).expanduser() if home else None
     memory_system = MemorySystem(base_path=base_path)
-    return OpenClawMemoryAdapter(memory_system=memory_system)
+    return AgentMemoryAdapter(memory_system=memory_system)
 
 
-def handle_session_start(adapter: "OpenClawMemoryAdapter", args: argparse.Namespace) -> Any:
+def handle_session_start(adapter: "AgentMemoryAdapter", args: argparse.Namespace) -> Any:
     payload = load_payload(args)
     context = payload.get("context", payload)
     if not isinstance(context, dict):
-        raise ValueError("session-start requires a JSON object context.")
+            raise ValueError("session-start/runtime-start requires a JSON object context.")
 
     limit_per_type = (
         args.limit_per_type
@@ -153,7 +155,7 @@ def handle_session_start(adapter: "OpenClawMemoryAdapter", args: argparse.Namesp
 
 
 def handle_task_complete(
-    adapter: "OpenClawMemoryAdapter",
+    adapter: "AgentMemoryAdapter",
     args: argparse.Namespace,
 ) -> Dict[str, Any]:
     payload = load_payload(args)
@@ -168,7 +170,7 @@ def handle_task_complete(
 
 
 def handle_user_feedback(
-    adapter: "OpenClawMemoryAdapter",
+    adapter: "AgentMemoryAdapter",
     args: argparse.Namespace,
 ) -> Dict[str, Any]:
     payload = load_payload(args)
@@ -181,12 +183,12 @@ def handle_user_feedback(
         memory_type=payload.get("memory_type"),
         category=payload.get("category"),
         evidence=payload.get("evidence"),
-        source=str(payload.get("source", "openclaw_feedback")),
+        source=str(payload.get("source", "agent_feedback")),
     )
 
 
 def handle_record_error(
-    adapter: "OpenClawMemoryAdapter",
+    adapter: "AgentMemoryAdapter",
     args: argparse.Namespace,
 ) -> Dict[str, Any]:
     payload = load_payload(args)
@@ -199,12 +201,12 @@ def handle_record_error(
         feedback=payload.get("feedback"),
         prevention=payload.get("prevention"),
         root_cause=payload.get("root_cause"),
-        source=str(payload.get("source", "openclaw_error")),
+        source=str(payload.get("source", "agent_error")),
     )
 
 
 def handle_publish_memory(
-    adapter: "OpenClawMemoryAdapter",
+    adapter: "AgentMemoryAdapter",
     args: argparse.Namespace,
 ) -> Dict[str, Any]:
     payload = load_payload(args)
@@ -258,10 +260,12 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     handlers = {
         "session-start": handle_session_start,
+        "runtime-start": handle_session_start,
         "task-complete": handle_task_complete,
         "user-feedback": handle_user_feedback,
         "record-error": handle_record_error,
         "publish-memory": handle_publish_memory,
+        "publish-host-memory": handle_publish_memory,
     }
 
     try:
