@@ -32,18 +32,20 @@ def openclaw_session_start(
     context: Dict[str, Any],
     memory_system: Optional[MemorySystem] = None,
     limit_per_type: int = 3,
+    trace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build the OpenClaw session-start memory payload."""
-    return get_openclaw_adapter(memory_system, limit_per_type).session_start(context)
+    return get_openclaw_adapter(memory_system, limit_per_type).session_start(context, trace_id=trace_id)
 
 
 def openclaw_before_task(
     context: Dict[str, Any],
     memory_system: Optional[MemorySystem] = None,
     limit_per_type: int = 3,
+    trace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build the OpenClaw task-preflight memory payload."""
-    return get_openclaw_adapter(memory_system, limit_per_type).before_task(context)
+    return get_openclaw_adapter(memory_system, limit_per_type).before_task(context, trace_id=trace_id)
 
 
 def openclaw_task_complete(
@@ -53,6 +55,7 @@ def openclaw_task_complete(
     outcome: str,
     feedback: Optional[str] = None,
     memory_system: Optional[MemorySystem] = None,
+    trace_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Record a completed task through the OpenClaw adapter."""
     return get_openclaw_adapter(memory_system).task_complete(
@@ -61,6 +64,7 @@ def openclaw_task_complete(
         action=action,
         outcome=outcome,
         feedback=feedback,
+        trace_id=trace_id,
     )
 
 
@@ -74,6 +78,7 @@ def openclaw_user_feedback(
     category: Optional[str] = None,
     evidence: Optional[str] = None,
     memory_system: Optional[MemorySystem] = None,
+    trace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Record direct feedback and learn immediately."""
     return get_openclaw_adapter(memory_system).user_feedback(
@@ -85,6 +90,7 @@ def openclaw_user_feedback(
         memory_type=memory_type,
         category=category,
         evidence=evidence,
+        trace_id=trace_id,
     )
 
 
@@ -98,6 +104,7 @@ def openclaw_record_error(
     prevention: Optional[str] = None,
     root_cause: Optional[str] = None,
     memory_system: Optional[MemorySystem] = None,
+    trace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Record an error and optionally create an error rule."""
     return get_openclaw_adapter(memory_system).record_error(
@@ -109,6 +116,7 @@ def openclaw_record_error(
         feedback=feedback,
         prevention=prevention,
         root_cause=root_cause,
+        trace_id=trace_id,
     )
 
 

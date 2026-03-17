@@ -216,6 +216,7 @@ The layer must preserve this boundary:
 
 - Agent-Memory core owns learning, storage, and governance
 - the decision layer owns projection and packaging
+- the metrics layer owns exposure/outcome evaluation
 - the host runtime owns execution and final reasoning
 
 The host runtime should not need to:
@@ -224,6 +225,8 @@ The host runtime should not need to:
 - inspect internal indexes
 - understand cleanup rules
 - interpret raw event streams
+
+For bounded effectiveness reporting and limited item assessment, see [METRICS_LAYER.md](./METRICS_LAYER.md).
 
 ## Relationship To Current Implementation
 

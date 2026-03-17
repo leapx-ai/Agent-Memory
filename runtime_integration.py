@@ -22,32 +22,48 @@ class AgentMemoryAdapter:
     ):
         self.memory = memory_system or get_memory()
         self.limit_per_type = limit_per_type
+        self.current_trace_id: Optional[str] = None
 
     def session_start(
         self,
         context: Dict[str, Any],
         limit_per_type: Optional[int] = None,
+        trace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Build a memory payload for session start or task preflight."""
         limit = limit_per_type or self.limit_per_type
         brief = self.memory.build_runtime_brief(context, limit_per_type=limit)
+        prompt_block = self.memory.render_runtime_memory(
+            context,
+            limit_per_type=limit,
+        )
+        manifest = self.memory.start_run_metrics(
+            context=context,
+            brief=brief,
+            decision_brief=brief.get("decision_brief"),
+            trace_id=trace_id,
+        )
+        self.current_trace_id = manifest["trace_id"]
         return {
+            "trace_id": manifest["trace_id"],
             "context": context,
             "brief": brief,
             "decision_brief": brief.get("decision_brief"),
-            "prompt_block": self.memory.render_runtime_memory(
-                context,
-                limit_per_type=limit,
-            ),
+            "prompt_block": prompt_block,
         }
 
     def before_task(
         self,
         context: Dict[str, Any],
         limit_per_type: Optional[int] = None,
+        trace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Alias for task preflight usage."""
-        return self.session_start(context, limit_per_type=limit_per_type)
+        return self.session_start(
+            context,
+            limit_per_type=limit_per_type,
+            trace_id=trace_id,
+        )
 
     def task_complete(
         self,
@@ -56,9 +72,11 @@ class AgentMemoryAdapter:
         action: str,
         outcome: str,
         feedback: Optional[str] = None,
+        trace_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Record a completed task."""
-        return self.memory.log_event(
+        resolved_trace_id = trace_id or self.current_trace_id or self.memory.metrics_layer.get_active_trace_id()
+        logged = self.memory.log_event(
             type="task_complete",
             goal=goal,
             context=context,
@@ -66,6 +84,11 @@ class AgentMemoryAdapter:
             outcome=outcome,
             feedback=feedback,
         )
+        self.memory.record_task_complete_metrics(resolved_trace_id, event=logged)
+        if logged and resolved_trace_id:
+            logged = dict(logged)
+            logged["trace_id"] = resolved_trace_id
+        return logged
 
     def user_feedback(
         self,
@@ -78,8 +101,10 @@ class AgentMemoryAdapter:
         category: Optional[str] = None,
         evidence: Optional[str] = None,
         source: Optional[str] = None,
+        trace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Record direct user feedback and learn from it immediately."""
+        resolved_trace_id = trace_id or self.current_trace_id or self.memory.metrics_layer.get_active_trace_id()
         event = {
             "type": "user_feedback",
             "goal": goal,
@@ -104,11 +129,20 @@ class AgentMemoryAdapter:
             outcome=outcome,
             feedback=feedback,
         )
+        metrics_result = self.memory.record_user_feedback_metrics(
+            resolved_trace_id,
+            event=logged,
+        )
+        if logged and resolved_trace_id:
+            logged = dict(logged)
+            logged["trace_id"] = resolved_trace_id
         learned = self.memory.learn_immediately(event)
         return {
+            "trace_id": resolved_trace_id,
             "event": logged,
             "memory_item": learned,
             "memory_type": self._infer_memory_type(event) if learned else None,
+            "assessments": (metrics_result or {}).get("assessments", []),
         }
 
     def record_error(
@@ -122,8 +156,10 @@ class AgentMemoryAdapter:
         prevention: Optional[str] = None,
         root_cause: Optional[str] = None,
         source: Optional[str] = None,
+        trace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Record an error and optionally turn it into an error rule."""
+        resolved_trace_id = trace_id or self.current_trace_id or self.memory.metrics_layer.get_active_trace_id()
         event = {
             "type": "error",
             "goal": goal,
@@ -145,14 +181,23 @@ class AgentMemoryAdapter:
             outcome=outcome,
             feedback=feedback,
         )
+        metrics_result = self.memory.record_error_metrics(
+            resolved_trace_id,
+            event=logged,
+        )
+        if logged and resolved_trace_id:
+            logged = dict(logged)
+            logged["trace_id"] = resolved_trace_id
 
         learned = None
         if prevention or feedback:
             learned = self.memory.learn_immediately(event)
 
         return {
+            "trace_id": resolved_trace_id,
             "event": logged,
             "memory_item": learned,
+            "assessments": (metrics_result or {}).get("assessments", []),
         }
 
     def publish_memory(
@@ -169,6 +214,32 @@ class AgentMemoryAdapter:
             context=context or {},
             limit_per_type=limit,
             mode=mode,
+        )
+
+    def metrics_report(
+        self,
+        window_days: int = 7,
+        bucket: Optional[str] = None,
+        top_buckets: int = 5,
+    ) -> Dict[str, Any]:
+        """Build a bounded metrics report for recent runs."""
+        return self.memory.report_metrics(
+            window_days=window_days,
+            bucket=bucket,
+            top_buckets=top_buckets,
+        )
+
+    def render_metrics_report(
+        self,
+        window_days: int = 7,
+        bucket: Optional[str] = None,
+        top_buckets: int = 5,
+    ) -> str:
+        """Render a bounded metrics report as readable text."""
+        return self.memory.render_metrics_report(
+            window_days=window_days,
+            bucket=bucket,
+            top_buckets=top_buckets,
         )
 
     def _infer_memory_type(self, event: Dict[str, Any]) -> str:
@@ -209,18 +280,20 @@ def session_start(
     context: Dict[str, Any],
     memory_system: Optional[MemorySystem] = None,
     limit_per_type: int = 3,
+    trace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build the session-start memory payload."""
-    return get_adapter(memory_system, limit_per_type).session_start(context)
+    return get_adapter(memory_system, limit_per_type).session_start(context, trace_id=trace_id)
 
 
 def before_task(
     context: Dict[str, Any],
     memory_system: Optional[MemorySystem] = None,
     limit_per_type: int = 3,
+    trace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build the task-preflight memory payload."""
-    return get_adapter(memory_system, limit_per_type).before_task(context)
+    return get_adapter(memory_system, limit_per_type).before_task(context, trace_id=trace_id)
 
 
 def task_complete(
@@ -230,6 +303,7 @@ def task_complete(
     outcome: str,
     feedback: Optional[str] = None,
     memory_system: Optional[MemorySystem] = None,
+    trace_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Record a completed task through the generic runtime adapter."""
     return get_adapter(memory_system).task_complete(
@@ -238,6 +312,7 @@ def task_complete(
         action=action,
         outcome=outcome,
         feedback=feedback,
+        trace_id=trace_id,
     )
 
 
@@ -251,6 +326,7 @@ def user_feedback(
     category: Optional[str] = None,
     evidence: Optional[str] = None,
     memory_system: Optional[MemorySystem] = None,
+    trace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Record direct feedback and learn immediately."""
     return get_adapter(memory_system).user_feedback(
@@ -262,6 +338,7 @@ def user_feedback(
         memory_type=memory_type,
         category=category,
         evidence=evidence,
+        trace_id=trace_id,
     )
 
 
@@ -275,6 +352,7 @@ def record_error(
     prevention: Optional[str] = None,
     root_cause: Optional[str] = None,
     memory_system: Optional[MemorySystem] = None,
+    trace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Record an error and optionally create an error rule."""
     return get_adapter(memory_system).record_error(
@@ -286,6 +364,35 @@ def record_error(
         feedback=feedback,
         prevention=prevention,
         root_cause=root_cause,
+        trace_id=trace_id,
+    )
+
+
+def metrics_report(
+    window_days: int = 7,
+    bucket: Optional[str] = None,
+    memory_system: Optional[MemorySystem] = None,
+    top_buckets: int = 5,
+) -> Dict[str, Any]:
+    """Build a bounded metrics report through the generic runtime adapter."""
+    return get_adapter(memory_system).metrics_report(
+        window_days=window_days,
+        bucket=bucket,
+        top_buckets=top_buckets,
+    )
+
+
+def render_metrics_report(
+    window_days: int = 7,
+    bucket: Optional[str] = None,
+    memory_system: Optional[MemorySystem] = None,
+    top_buckets: int = 5,
+) -> str:
+    """Render a bounded metrics report through the generic runtime adapter."""
+    return get_adapter(memory_system).render_metrics_report(
+        window_days=window_days,
+        bucket=bucket,
+        top_buckets=top_buckets,
     )
 
 

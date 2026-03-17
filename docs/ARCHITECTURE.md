@@ -87,6 +87,7 @@ For `v1.0.0`, the intended layers are:
 
 - `memory.py`: core storage, retrieval, learning, and governance logic
 - `decision_layer.py`: projection, ranking, publishing, and Decision Brief packaging
+- metrics layer: bounded run-level observability and effectiveness reporting
 - `runtime_integration.py`: generic lifecycle adapter
 - `openclaw_integration.py`: reference lifecycle adapter
 - CLI surface: standalone invocation boundary for non-import-based usage
@@ -185,6 +186,33 @@ Practical interpretation:
 - strong enough for a personal agent workflow
 - appropriate as a local projection / decision-enhancement layer
 - not yet hardened as a high-concurrency or multi-agent publishing system
+
+### 7. Metrics Layer
+
+This layer sits alongside runtime-facing outputs.
+
+Its job is not to own storage or runtime execution. Its job is to answer whether governed memory appears to help without turning Agent-Memory into a full analytics platform.
+
+Recommended responsibilities:
+
+- record what memory was exposed during a run
+- record what happened later in the same run
+- compute type-level correction, error, success, and clean-run rates
+- optionally support narrow item-level assessment for a small set of linkable domains
+
+Recommended guardrails:
+
+- bounded by `trace_id` / run window
+- explicit events before inference
+- item-level `unresolved` by default when link evidence is weak
+- no full transcript replay requirement
+
+Current implementation status:
+
+- the first bounded slice is implemented
+- run manifests and run outcomes are recorded
+- recent type-level reports can be generated locally
+- item-level linking remains intentionally narrow and mostly future work
 
 ## Data Structures
 
@@ -335,6 +363,8 @@ For `v1.0.0`, the preferred integration order is:
 3. HTTP/service deployment remains post-`v1.0.0`.
 
 For the next projection / decision-enhancement design layer, see [DECISION_LAYER.md](./DECISION_LAYER.md).
+
+For bounded effectiveness and observability design, see [METRICS_LAYER.md](./METRICS_LAYER.md).
 
 ## Future Work
 

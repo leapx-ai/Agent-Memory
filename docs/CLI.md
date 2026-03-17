@@ -6,6 +6,7 @@ The CLI keeps the original OpenClaw-era command names for compatibility, but the
 
 - `runtime-start` as the preferred alias for `session-start`
 - `publish-host-memory` as the preferred alias for `publish-memory`
+- `metrics-report` as the preferred command for bounded effectiveness reporting
 
 ## Entry Point
 
@@ -46,12 +47,15 @@ python3 agent_memory_cli.py runtime-start --input context.json
 
 Output:
 
+- `trace_id`
 - `context`
 - `brief`
 - `decision_brief`
 - `prompt_block`
 
 Use `--prompt-only` if the runtime only needs the rendered Markdown block.
+
+The returned `trace_id` can be passed back to later lifecycle calls. If it is omitted, the CLI falls back to the most recently started local run.
 
 ### `task-complete`
 
@@ -77,6 +81,10 @@ Example:
 ```bash
 python3 agent_memory_cli.py task-complete --input event.json
 ```
+
+Optional field:
+
+- `trace_id`
 
 ### `user-feedback`
 
@@ -104,6 +112,10 @@ Example:
 python3 agent_memory_cli.py user-feedback --input feedback.json
 ```
 
+Optional field:
+
+- `trace_id`
+
 ### `record-error`
 
 Record an error and optionally turn it into an error rule.
@@ -129,6 +141,10 @@ Example:
 ```bash
 python3 agent_memory_cli.py record-error --input error.json
 ```
+
+Optional field:
+
+- `trace_id`
 
 ### `publish-host-memory` / `publish-memory`
 
@@ -162,6 +178,43 @@ Output:
 - `daily_file`
 - `published`
 - `decision_brief`
+
+### `metrics-report` / `report-metrics`
+
+Build a bounded report over recent runs.
+
+Example:
+
+```bash
+python3 agent_memory_cli.py metrics-report --window-days 7
+```
+
+Optional flags:
+
+- `--window-days`
+- `--bucket`
+- `--top-buckets`
+- `--text`
+
+Output:
+
+- `generated_at`
+- `window_days`
+- `bucket`
+- `total_runs`
+- `by_memory_type`
+- `by_bucket`
+- `summary`
+
+If `--text` is passed, the CLI prints a readable report with:
+
+- headline metrics
+- a verdict line
+- a top positive signal line
+- top watchouts
+- by-memory-type health lines
+- bucket comparison lines
+- linked contradiction highlights when available
 
 ## Input Rules
 

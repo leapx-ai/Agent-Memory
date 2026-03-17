@@ -100,6 +100,23 @@ Remaining hardening:
 - refine the structured Decision Brief beyond the initial implementation
 - keep projection outputs separate from source-of-truth storage and governance
 
+### M6: Metrics And Effectiveness Layer
+
+Initial bounded slice completed:
+
+- bounded run-level observability rather than full runtime replay
+- type-level correction, error, success, and clean-run reporting
+- record `RunManifest` on session start
+- record `RunOutcome` from task completion, user feedback, and error events
+- ship a local report surface for recent windows such as 7 days
+
+Remaining hardening:
+
+- add limited item-level assessment only where link evidence is strong enough
+- expand from the current high-leverage categories without falling back to low-value demo rules
+- keep item-level status `unresolved` unless a bounded linker can justify a stronger judgment
+- improve reporting for bucket comparisons and recent snapshots
+
 ## Post-1.0.0
 
 ### v1.1.0 - Automation
@@ -110,6 +127,7 @@ Remaining hardening:
 - Decision Brief hardening and ranking improvements
 - Host memory publishing hardening for runtime-facing projection
 - Better sync policy for durable vs daily host memory
+- Metrics hardening with richer reports and narrow item-level linking
 
 ### v1.2.0 - Intelligence
 

@@ -31,7 +31,7 @@ def install_yaml_stub():
 
 def load_memory_module():
     install_yaml_stub()
-    for module_name in ("memory", "decision_layer"):
+    for module_name in ("memory", "decision_layer", "metrics_layer"):
         sys.modules.pop(module_name, None)
     return importlib.import_module("memory")
 
@@ -268,6 +268,142 @@ class MemorySystemTests(unittest.TestCase):
         )
         self.assertEqual(runtime_publish["decision_brief"], openclaw_publish["decision_brief"])
         self.assertEqual(runtime_publish["published"], openclaw_publish["published"])
+
+    def test_report_metrics_aggregates_run_outcomes(self):
+        self.memory_system.learn_immediately(
+            {
+                "type": "user_feedback",
+                "goal": "Respond to the user",
+                "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+                "feedback": "Be concise",
+                "memory_type": "preference",
+                "category": "communication_style",
+            }
+        )
+        context = {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"}
+        brief = self.memory_system.build_runtime_brief(context)
+        manifest = self.memory_system.start_run_metrics(
+            context=context,
+            brief=brief,
+            decision_brief=brief["decision_brief"],
+        )
+
+        task_event = self.memory_system.log_event(
+            type="task_complete",
+            goal="Handle incident",
+            context=context,
+            action="Sent a concise reply",
+            outcome="success",
+        )
+        feedback_event = self.memory_system.log_event(
+            type="user_feedback",
+            goal="Handle incident",
+            context=context,
+            action="Sent a concise reply",
+            outcome="feedback_received",
+            feedback="Be even more direct",
+        )
+        self.memory_system.record_task_complete_metrics(manifest["trace_id"], task_event)
+        self.memory_system.record_user_feedback_metrics(manifest["trace_id"], feedback_event)
+
+        report = self.memory_system.report_metrics(window_days=7)
+
+        self.assertEqual(report["total_runs"], 1)
+        self.assertEqual(report["by_memory_type"]["preference"]["exposed_runs"], 1)
+        self.assertEqual(report["by_memory_type"]["preference"]["correction_rate"], 1.0)
+        self.assertIn("summary", report)
+        self.assertIn("headline_verdict", report["summary"])
+
+    def test_metrics_assessment_links_high_leverage_workflow_feedback(self):
+        strategy = self.memory_system.learn_immediately(
+            {
+                "type": "user_feedback",
+                "goal": "Investigate incident",
+                "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+                "action": "Skipped logs",
+                "feedback": "Check local logs before proposing a root cause",
+            }
+        )
+        preference = self.memory_system.learn_immediately(
+            {
+                "type": "user_feedback",
+                "goal": "Respond to the user",
+                "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+                "feedback": "Be concise",
+                "memory_type": "preference",
+                "category": "communication_style",
+            }
+        )
+
+        context = {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"}
+        brief = self.memory_system.build_runtime_brief(context)
+        manifest = self.memory_system.start_run_metrics(
+            context=context,
+            brief=brief,
+            decision_brief=brief["decision_brief"],
+        )
+        feedback_event = self.memory_system.log_event(
+            type="user_feedback",
+            goal="Investigate incident",
+            context=context,
+            action="Guessed the cause without checking logs",
+            outcome="feedback_received",
+            feedback="Don't guess. Read the logs first.",
+        )
+        self.memory_system.record_user_feedback_metrics(manifest["trace_id"], feedback_event)
+        assessments = self.memory_system.get_metric_assessments(manifest["trace_id"])
+        by_memory_id = {item["memory_id"]: item for item in assessments}
+
+        self.assertEqual(by_memory_id[strategy["id"]]["status"], "likely_contradicted")
+        self.assertEqual(by_memory_id[preference["id"]]["status"], "unresolved")
+
+        report = self.memory_system.report_metrics(window_days=7)
+        self.assertEqual(report["summary"]["linked_contradictions"], 1)
+        self.assertEqual(
+            report["summary"]["top_contradicted_items"][0]["memory_id"],
+            strategy["id"],
+        )
+        self.assertTrue(report["summary"]["top_watchouts"])
+
+    def test_report_metrics_includes_bucket_comparison(self):
+        support_context = {
+            "task": "incident_triage",
+            "workspace": "support-bot",
+            "surface": "chat",
+        }
+        blog_context = {
+            "task": "content_publishing",
+            "workspace": "blog",
+            "surface": "chat",
+        }
+
+        for context, outcome in ((support_context, "success"), (blog_context, "failure")):
+            brief = self.memory_system.build_runtime_brief(context)
+            manifest = self.memory_system.start_run_metrics(
+                context=context,
+                brief=brief,
+                decision_brief=brief["decision_brief"],
+            )
+            event = self.memory_system.log_event(
+                type="task_complete",
+                goal="Do work",
+                context=context,
+                action="Handled task",
+                outcome=outcome,
+            )
+            self.memory_system.record_task_complete_metrics(manifest["trace_id"], event)
+
+        report = self.memory_system.report_metrics(window_days=7, top_buckets=5)
+        text_report = self.memory_system.render_metrics_report(window_days=7, top_buckets=5)
+
+        self.assertEqual(len(report["by_bucket"]), 2)
+        self.assertEqual(
+            report["summary"]["healthiest_bucket"]["bucket"],
+            "incident_triage|support-bot|chat",
+        )
+        self.assertIn("Bucket Comparison", text_report)
+        self.assertIn("incident_triage|support-bot|chat", text_report)
+        self.assertIn("Verdict:", text_report)
 
 
 if __name__ == "__main__":

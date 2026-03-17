@@ -86,6 +86,7 @@ class AgentMemoryCliTests(unittest.TestCase):
         self.assertIn("brief", session_output)
         self.assertIn("decision_brief", session_output)
         self.assertIn("prompt_block", session_output)
+        self.assertIn("trace_id", session_output)
         self.assertIn("### Priority Preferences", session_output["prompt_block"])
         self.assertIn("### Relevant Strategies", session_output["prompt_block"])
         self.assertIn("### Risk Alerts", session_output["prompt_block"])
@@ -179,6 +180,111 @@ class AgentMemoryCliTests(unittest.TestCase):
         self.assertTrue(Path(publish_output["memory_file"]).exists())
         self.assertTrue(Path(publish_output["daily_file"]).exists())
 
+    def test_cli_metrics_report_aggregates_recent_runs(self):
+        strategy_payload = {
+            "goal": "Investigate incident",
+            "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+            "action": "Skipped logs",
+            "feedback": "Check local logs before proposing a root cause",
+        }
+        learn_payload = {
+            "goal": "Respond to the user",
+            "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+            "action": "Sent a long answer",
+            "feedback": "Be concise",
+            "memory_type": "preference",
+            "category": "communication_style",
+        }
+        start_payload = {
+            "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+        }
+
+        strategy_output = self.run_cli("user-feedback", strategy_payload)
+        self.run_cli("user-feedback", learn_payload)
+        start_output = self.run_cli("runtime-start", start_payload)
+        task_payload = {
+            "trace_id": start_output["trace_id"],
+            "goal": "Handle incident",
+            "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+            "action": "Sent a concise reply",
+            "outcome": "success",
+        }
+        correction_payload = {
+            "trace_id": start_output["trace_id"],
+            "goal": "Handle incident",
+            "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+            "action": "Guessed the cause without checking logs",
+            "feedback": "Don't guess. Read the logs first.",
+        }
+
+        self.run_cli("task-complete", task_payload)
+        correction_output = self.run_cli("user-feedback", correction_payload)
+        report_output = self.run_cli_no_input("metrics-report", extra_args=["--window-days", "7"])
+        text_output = self.run_cli_no_input(
+            "metrics-report",
+            extra_args=["--window-days", "7", "--text"],
+            parse_json=False,
+        )
+
+        self.assertEqual(report_output["total_runs"], 1)
+        self.assertEqual(report_output["by_memory_type"]["preference"]["exposed_runs"], 1)
+        self.assertEqual(report_output["by_memory_type"]["preference"]["correction_rate"], 1.0)
+        self.assertIn("summary", report_output)
+        self.assertIn("headline_verdict", report_output["summary"])
+        assessments = {item["memory_id"]: item for item in correction_output["assessments"]}
+        self.assertEqual(
+            assessments[strategy_output["memory_item"]["id"]]["status"],
+            "likely_contradicted",
+        )
+        self.assertIn("Agent-Memory Metrics Report", text_output)
+        self.assertIn("Most exposed memory type", text_output)
+        self.assertIn("Verdict:", text_output)
+
+    def test_cli_metrics_report_includes_bucket_comparison(self):
+        run_payloads = [
+            {
+                "context": {"task": "incident_triage", "workspace": "support-bot", "surface": "chat"},
+                "goal": "Handle incident",
+                "action": "Handled incident",
+                "outcome": "success",
+            },
+            {
+                "context": {"task": "content_publishing", "workspace": "blog", "surface": "chat"},
+                "goal": "Publish content",
+                "action": "Handled publish",
+                "outcome": "failure",
+            },
+        ]
+
+        for item in run_payloads:
+            start_output = self.run_cli("runtime-start", {"context": item["context"]})
+            self.run_cli(
+                "task-complete",
+                {
+                    "trace_id": start_output["trace_id"],
+                    "goal": item["goal"],
+                    "context": item["context"],
+                    "action": item["action"],
+                    "outcome": item["outcome"],
+                },
+            )
+
+        report_output = self.run_cli_no_input(
+            "metrics-report",
+            extra_args=["--window-days", "7", "--top-buckets", "5"],
+        )
+        text_output = self.run_cli_no_input(
+            "metrics-report",
+            extra_args=["--window-days", "7", "--top-buckets", "5", "--text"],
+            parse_json=False,
+        )
+
+        self.assertEqual(len(report_output["by_bucket"]), 2)
+        self.assertIn("healthiest_bucket", report_output["summary"])
+        self.assertIn("Bucket Comparison", text_output)
+        self.assertIn("incident_triage|support-bot|chat", text_output)
+        self.assertIn("Top Watchouts", text_output)
+
     def run_cli(
         self,
         command: str,
@@ -213,6 +319,29 @@ class AgentMemoryCliTests(unittest.TestCase):
                 cwd=REPO_ROOT,
                 check=True,
             )
+
+        if parse_json:
+            return json.loads(result.stdout)
+        return result.stdout
+
+    def run_cli_no_input(
+        self,
+        command: str,
+        extra_args: Optional[List[str]] = None,
+        parse_json: bool = True,
+    ):
+        args = [command]
+        if extra_args:
+            args.extend(extra_args)
+
+        result = subprocess.run(
+            self.base_command(args),
+            text=True,
+            capture_output=True,
+            env=self.cli_env(),
+            cwd=REPO_ROOT,
+            check=True,
+        )
 
         if parse_json:
             return json.loads(result.stdout)

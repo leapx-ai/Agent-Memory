@@ -134,8 +134,10 @@ class MemorySystem:
         self._update_status()
 
         from decision_layer import DecisionLayer
+        from metrics_layer import MetricsLayer
 
         self.decision_layer = DecisionLayer(self)
+        self.metrics_layer = MetricsLayer(self)
 
     def _ensure_storage(self):
         """确保目录与基础文件存在。"""
@@ -423,6 +425,79 @@ class MemorySystem:
             limit_per_type=limit_per_type,
             mode=mode,
         )
+
+    def start_run_metrics(
+        self,
+        context: Dict[str, Any],
+        brief: Dict[str, Any],
+        decision_brief: Optional[Dict[str, Any]] = None,
+        trace_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Record a run manifest for effectiveness tracking."""
+        return self.metrics_layer.start_run(
+            context=context,
+            brief=brief,
+            decision_brief=decision_brief,
+            trace_id=trace_id,
+        )
+
+    def record_task_complete_metrics(
+        self,
+        trace_id: Optional[str],
+        event: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Update run outcome on task completion."""
+        return self.metrics_layer.record_task_complete(trace_id, event=event)
+
+    def record_user_feedback_metrics(
+        self,
+        trace_id: Optional[str],
+        event: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Update run outcome on explicit corrective feedback."""
+        return self.metrics_layer.record_user_feedback(trace_id, event=event)
+
+    def record_error_metrics(
+        self,
+        trace_id: Optional[str],
+        event: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Update run outcome on recorded errors."""
+        return self.metrics_layer.record_error(trace_id, event=event)
+
+    def report_metrics(
+        self,
+        window_days: int = 7,
+        bucket: Optional[str] = None,
+        top_buckets: int = 5,
+    ) -> Dict[str, Any]:
+        """Build a bounded metrics report for recent runs."""
+        return self.metrics_layer.report(
+            window_days=window_days,
+            bucket=bucket,
+            top_buckets=top_buckets,
+        )
+
+    def get_metric_assessments(
+        self,
+        trace_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return recorded bounded item assessments."""
+        return self.metrics_layer.get_assessments(trace_id=trace_id)
+
+    def render_metrics_report(
+        self,
+        window_days: int = 7,
+        bucket: Optional[str] = None,
+        top_buckets: int = 5,
+    ) -> str:
+        """Render a human-readable metrics report."""
+        report = self.report_metrics(
+            window_days=window_days,
+            bucket=bucket,
+            top_buckets=top_buckets,
+        )
+        return self.metrics_layer.render_report_text(report)
 
     def get_all_strategies(self) -> List[Dict[str, Any]]:
         """获取所有 task strategies。"""
@@ -1032,6 +1107,14 @@ def publish_host_memory(
         limit_per_type=limit_per_type,
         mode=mode,
     )
+
+
+def report_metrics(
+    window_days: int = 7,
+    bucket: Optional[str] = None,
+) -> Dict[str, Any]:
+    """构建近期 run 的效果指标报告。"""
+    return get_memory().report_metrics(window_days=window_days, bucket=bucket)
 
 
 if __name__ == "__main__":

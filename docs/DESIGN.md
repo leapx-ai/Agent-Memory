@@ -159,6 +159,39 @@ This preserves the intended layering:
 
 See [DECISION_LAYER.md](./DECISION_LAYER.md) for the concrete design.
 
+### Decision 7: Bounded Metrics Before Deep Attribution
+
+**Problem**: It is easy to say "measure effectiveness," but a naive implementation turns into full runtime analytics:
+
+- too much data collection
+- ambiguous item-level causality
+- open-ended evidence rules
+- high engineering cost for weak early signal
+
+At the same time, a too-simple implementation is misleading:
+
+- "a run had user feedback" does not mean every exposed memory item failed
+- "no feedback arrived" does not prove a memory item helped
+
+**Decision**: Add a bounded metrics / effectiveness layer with two explicit priorities:
+
+- run-level and type-level reporting first
+- cautious item-level assessment only in narrow, rule-driven domains
+
+Required guardrails:
+
+- metrics are bounded by `trace_id` / run
+- explicit lifecycle events are primary evidence
+- item-level status defaults to `unresolved` unless link evidence is strong enough
+- the system should measure association before attempting causality
+
+This preserves a practical balance:
+
+- cheap enough for local workflows
+- strong enough to avoid obviously false conclusions
+
+See [METRICS_LAYER.md](./METRICS_LAYER.md) for the concrete design.
+
 ---
 
 ## Integration Architecture
@@ -204,6 +237,7 @@ Recommended implementation surface: use `openclaw_integration.py` as the lifecyc
 | Standalone CLI | ✅ | ✅ |
 | Structured Decision Brief | ⚠️ Initial post-`v1.0.0` implementation | ✅ Hardened |
 | Host memory publisher | ⚠️ Initial post-`v1.0.0` implementation | ✅ Hardened |
+| Metrics / effectiveness layer | ⚠️ Initial bounded implementation | ✅ Hardened and extended |
 | Log events | ✅ Manual call | ✅ Auto after tasks |
 | Learn strategies/preferences/rules from feedback | ✅ Manual call | ✅ Auto trigger |
 | Weight decay | ❌ | ✅ Heartbeat job |

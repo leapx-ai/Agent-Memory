@@ -198,6 +198,7 @@ Ensure system stability:
 | [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System architecture |
 | [DESIGN.md](./docs/DESIGN.md) | Design principles and decisions |
 | [DECISION_LAYER.md](./docs/DECISION_LAYER.md) | Projection layer design for host memory publishing and decision briefs |
+| [METRICS_LAYER.md](./docs/METRICS_LAYER.md) | Bounded effectiveness and observability design for run-level health and limited item assessment |
 | [INSTALL.md](./docs/INSTALL.md) | Installation guide |
 
 ## Current Release (v1.0.0)
@@ -224,10 +225,13 @@ What works today:
 - structured `decision_brief` generation for task start
 - prompt-ready Markdown rendering through `render_runtime_memory()`
 - host-memory projection through `publish_host_memory()`
+- bounded run-level metrics through `report_metrics()`
+- readable metrics output through `render_metrics_report()` and `metrics-report --text`
 - a stable generic lifecycle adapter in `runtime_integration.py`
 - a stable CLI surface with neutral aliases:
   - `runtime-start`
   - `publish-host-memory`
+  - `metrics-report`
 - tests that cover the core engine, adapter, CLI, and decision layer
 
 This is enough to use Agent-Memory as a standalone decision-enhancement layer even outside OpenClaw. OpenClaw remains the best-documented integration path because it already has an adapter and host-memory projection flow.
@@ -284,6 +288,19 @@ Primary commands:
 - `user-feedback`
 - `record-error`
 - `publish-host-memory` (preferred alias for `publish-memory`)
+- `metrics-report`
+
+The metrics surface now supports both:
+
+- machine-readable JSON reports with a `summary` block
+- machine-readable JSON reports with bounded `by_bucket` comparison
+- a human-readable terminal view via `metrics-report --text`
+
+At this point, the metrics layer is strong enough for local validation work:
+
+- run-level and type-level health signals are available
+- a few high-leverage item-level contradictions can be surfaced
+- reports are readable enough to guide whether more memory work is worth doing
 
 See [CLI.md](./docs/CLI.md) for the stable input/output contract.
 
@@ -426,6 +443,7 @@ This project is guided by these principles:
 
 - Retrieval is lightweight keyword/context matching, not semantic search yet.
 - The decision layer is implemented, but the selector/ranker is still heuristic and intentionally simple.
+- The metrics/effectiveness layer now supports bounded run manifests, run outcomes, type-level reports, and limited item-level linking for a few high-leverage categories.
 - Host-memory publishing works, but sync policy is still basic and explicit-call driven.
 - Conflict resolution and incremental merge behavior are still lightweight.
 - Cleanup is implemented for retention and hard limits; archival and decay are still roadmap items.
@@ -437,6 +455,7 @@ This project is guided by these principles:
 The next meaningful hardening steps are:
 
 - improve ranking quality for strategies, preferences, and risk alerts
+- harden the bounded metrics layer with richer reports and broader but still bounded item-level linking
 - harden host-memory publishing with better merge/update rules
 - add stronger sync policy for when to refresh durable memory vs daily memory
 - add preview / dry-run support for memory publishing

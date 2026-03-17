@@ -89,6 +89,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="Projection mode. Supported values: incremental, full.",
     )
 
+    metrics_report = subparsers.add_parser(
+        "metrics-report",
+        aliases=["report-metrics"],
+        help="Build a bounded metrics report for recent runs.",
+    )
+    metrics_report.add_argument(
+        "--window-days",
+        type=int,
+        default=7,
+        help="Rolling time window in days.",
+    )
+    metrics_report.add_argument(
+        "--bucket",
+        help="Optional exact bucket filter in task|workspace|surface form.",
+    )
+    metrics_report.add_argument(
+        "--top-buckets",
+        type=int,
+        default=5,
+        help="Maximum number of bucket rows to include in report comparison output.",
+    )
+    metrics_report.add_argument(
+        "--text",
+        action="store_true",
+        help="Print a human-readable report instead of JSON.",
+    )
+
     return parser
 
 
@@ -141,14 +168,18 @@ def handle_session_start(adapter: "AgentMemoryAdapter", args: argparse.Namespace
     payload = load_payload(args)
     context = payload.get("context", payload)
     if not isinstance(context, dict):
-            raise ValueError("session-start/runtime-start requires a JSON object context.")
+        raise ValueError("session-start/runtime-start requires a JSON object context.")
 
     limit_per_type = (
         args.limit_per_type
         if args.limit_per_type is not None
         else payload.get("limit_per_type", adapter.limit_per_type)
     )
-    result = adapter.session_start(context, limit_per_type=limit_per_type)
+    result = adapter.session_start(
+        context,
+        limit_per_type=limit_per_type,
+        trace_id=payload.get("trace_id"),
+    )
     if args.prompt_only:
         return result["prompt_block"]
     return result
@@ -165,6 +196,7 @@ def handle_task_complete(
         action=_required_str(payload, "action"),
         outcome=_required_str(payload, "outcome"),
         feedback=payload.get("feedback"),
+        trace_id=payload.get("trace_id"),
     )
     return {"event": result}
 
@@ -184,6 +216,7 @@ def handle_user_feedback(
         category=payload.get("category"),
         evidence=payload.get("evidence"),
         source=str(payload.get("source", "agent_feedback")),
+        trace_id=payload.get("trace_id"),
     )
 
 
@@ -202,6 +235,7 @@ def handle_record_error(
         prevention=payload.get("prevention"),
         root_cause=payload.get("root_cause"),
         source=str(payload.get("source", "agent_error")),
+        trace_id=payload.get("trace_id"),
     )
 
 
@@ -227,6 +261,23 @@ def handle_publish_memory(
         context=context,
         limit_per_type=limit_per_type,
         mode=str(mode),
+    )
+
+
+def handle_metrics_report(
+    adapter: "AgentMemoryAdapter",
+    args: argparse.Namespace,
+) -> Any:
+    if args.text:
+        return adapter.render_metrics_report(
+            window_days=args.window_days,
+            bucket=args.bucket,
+            top_buckets=args.top_buckets,
+        )
+    return adapter.metrics_report(
+        window_days=args.window_days,
+        bucket=args.bucket,
+        top_buckets=args.top_buckets,
     )
 
 
@@ -266,6 +317,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         "record-error": handle_record_error,
         "publish-memory": handle_publish_memory,
         "publish-host-memory": handle_publish_memory,
+        "metrics-report": handle_metrics_report,
+        "report-metrics": handle_metrics_report,
     }
 
     try:
